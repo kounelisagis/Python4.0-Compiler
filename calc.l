@@ -10,26 +10,35 @@
 digit [0-9]
 num	{digit}+
 float ({digit}*)\.({num})
+special [!@#$%^&*()]
 letter [a-zA-Z]
-string {letter}+
+string \"(\\.|[^"\\])*\"
 identifier ({letter}|_)({letter}|{digit}|_)*
 module ({identifier}\.)*{identifier}
 
 
 %%
-[ \t\n] ;
-"import" { yylval.stringValue = "import"; return IMPORT; }
+[ \t\n] { /*printf("SPACE / TAB / NEW LINE\n");*/ };
 
-{identifier} { yylval.stringValue = yytext; return IDENTIFIER; }
+"import"        { /*printf("import\n");*/ yylval.stringValue = "import"; return IMPORT; }
 
-{module} { yylval.stringValue = yytext; return MODULE; }
+{identifier}    { /*printf("identifier\n");*/ yylval.stringValue = strdup(yytext); return IDENTIFIER; }
 
-{num} { yylval.intValue = atoi(yytext); return INT; }
+{module}        { /*printf("module\n");*/ yylval.stringValue = strdup(yytext); return MODULE; }
 
-{float} { yylval.floatValue = atof(yytext); return FLOAT; }
+{num}           { /*printf("num\n");*/ yylval.intValue = atoi(yytext); return INT; }
 
-"=" { return '='; }
-"+" { return '+'; }
-"*" { return '*'; }
+{float}         { /*printf("float\n");*/ yylval.floatValue = atof(yytext); return FLOAT; }
+
+{string}        { /*printf("string\n");*/ yylval.stringValue = strdup(yytext); return STRING; }
+
+
+"="             { /*printf("=\n");*/ return '='; }
+"+"             { /*printf("+\n");*/ return '+'; }
+"*"             { /*printf("*\n");*/ return '*'; }
+"/"             { /*printf("/\n");*/ return '/'; }
+
+
+
 . ;
 %%

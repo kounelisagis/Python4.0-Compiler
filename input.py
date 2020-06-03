@@ -1,8 +1,17 @@
-import mylibrary.a
-import test.b
-import here
+import kappa
 
-import test2222.c
 
-x = 5
+a = 6 / 2
+
+b = 3.5 / 2.0
+
+y = "aaa3"
+
+
+c = a + 2
+
+d =  b + 2.6
+
+
+
 
