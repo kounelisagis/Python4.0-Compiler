@@ -6,11 +6,12 @@
 %}
 
 %option noyywrap
+%option yylineno
+
 
 digit [0-9]
-num	{digit}+
+num {digit}+
 float ({digit}*)\.({num})
-special [!@#$%^&*()]
 letter [a-zA-Z]
 string \"(\\.|[^"\\])*\"
 identifier ({letter}|_)({letter}|{digit}|_)*
@@ -18,13 +19,18 @@ module ({identifier}\.)*{identifier}
 
 
 %%
-[ \t\n] { /*printf("SPACE / TAB / NEW LINE\n");*/ };
+[\n]            { yylval.stringValue = "\n"; return NEWLINE; }
+[\t]            { yylval.stringValue = "\t"; return INDENT; }
+
+[ ]             { /*printf("SPACE\n");*/ };
 
 "import"        { /*printf("import\n");*/ yylval.stringValue = "import"; return IMPORT; }
 
-{identifier}    { /*printf("identifier\n");*/ yylval.stringValue = strdup(yytext); return IDENTIFIER; }
+"class"         { /*printf("class\n");*/ yylval.stringValue = "class"; return CLASS; }
 
-{module}        { /*printf("module\n");*/ yylval.stringValue = strdup(yytext); return MODULE; }
+{identifier}    { printf("identifier\n"); yylval.stringValue = strdup(yytext); return IDENTIFIER; }
+
+{module}        { printf("module\n"); yylval.stringValue = strdup(yytext); return MODULE; }
 
 {num}           { /*printf("num\n");*/ yylval.intValue = atoi(yytext); return INT; }
 
@@ -35,9 +41,14 @@ module ({identifier}\.)*{identifier}
 
 "="             { /*printf("=\n");*/ return '='; }
 "+"             { /*printf("+\n");*/ return '+'; }
+"-"             { /*printf("-\n");*/ return '-'; }
 "*"             { /*printf("*\n");*/ return '*'; }
 "/"             { /*printf("/\n");*/ return '/'; }
 
+"("             { /*printf("(\n");*/ return '('; }
+")"             { /*printf(")\n");*/ return ')'; }
+
+":"             { /*printf(":\n");*/ return ':'; }
 
 
 . ;

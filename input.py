@@ -1,17 +1,20 @@
 import kappa
 
 
-a = 6 / 2
+x = "agis"
 
-b = 3.5 / 2.0
-
-y = "aaa3"
+y = "giannis"
 
 
-c = a + 2
+r = -1
 
-d =  b + 2.6
+a = 1 - 5
 
 
+class a:
+	test = 3.2
+	class b:
+		x = 3
+		y = 6
 
 
