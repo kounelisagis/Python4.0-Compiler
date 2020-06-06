@@ -32,6 +32,8 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 
 {multilineComment} { /*printf("comment\n");*/ yylval.stringValue = strdup(yytext); return MULTILINE_COMMENT; }
 
+"print"         { /*printf("print\n");*/ yylval.stringValue = "print"; return PRINT; }
+
 "import"        { /*printf("import\n");*/ yylval.stringValue = "import"; return IMPORT; }
 
 "class"         { /*printf("class\n");*/ yylval.stringValue = "class"; return CLASS; }
@@ -48,6 +50,9 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 
 "is"            { /*printf("is\n");*/ yylval.stringValue = "is"; return IS; }
 
+"def"           { /*printf("def\n");*/ yylval.stringValue = "def"; return DEF; }
+
+"for"           { /*printf("for\n");*/ yylval.stringValue = "for"; return FOR; }
 
 {identifier}    { /*printf("identifier\n");*/ yylval.stringValue = strdup(yytext); return IDENTIFIER; }
 
@@ -59,9 +64,7 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 
 {string}        { /*printf("string\n");*/ yylval.stringValue = strdup(yytext); return STRING; }
 
-{arithmetic_op} { printf("comparison\n"); yylval.stringValue = "arithmetic_op"; return ARITHMETIC_OP; }
-
-
+{arithmetic_op} { /*printf("comparison\n");*/ yylval.stringValue = "arithmetic_op"; return ARITHMETIC_OP; }
 
 "="             { /*printf("=\n");*/ return '='; }
 
@@ -78,6 +81,12 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 ")"             { /*printf(")\n");*/ return ')'; }
 
 ":"             { /*printf(":\n");*/ return ':'; }
+
+","             { /*printf(",\n");*/ return ','; }
+
+"["             { /*printf("[\n");*/ return '['; }
+
+"]"             { /*printf("]\n");*/ return ']'; }
 
 . ;
 

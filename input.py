@@ -1,34 +1,43 @@
-import matplotlib
+import kappa
+import matplotlib.kappa
 
+a = "agis"
+b = "jj"
+c = "john"
+d = "apos"
 
-x = "agis"
-y = "giannis"
+if 5>3:
+	x = 1
 
+if 5<3:
+	x = 1
+elif 5>3:
+	x = 2
 
-r = -1
-
-b = 1 - 5
-
-# This is a test comment     1!   !!
-
-class a:
-	test = 3.2
-
-if 5 > 3:
-	v = 32
+if 5<3:
+	x = 1
+elif 5==3:
+	x = 2
 else:
-	kappa = 7
+	x = 3
+
+# Test comment 1 Inline
+
+''' Test comment 2
+multi line comment '''
+
+class test_Class:
+	x = 4
+
+a = test_Class()
+
+def test_function(a, b):
+	x = 5
 
 
-if 3>3:
-	a = 2
+print("this is a test for print")
 
 
+for i in [3, 1, 7, 65]:
+	x = 6
 
-''' This is a multiline 
-commnent '''
-
-
-var = 3
-if 3>3:
-	x=6
