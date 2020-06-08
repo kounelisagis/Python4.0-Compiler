@@ -9,17 +9,34 @@
 void yyerror(char *);
 int yylex();
 
+
 extern FILE *yyin;
 extern FILE *yyout;
 extern int yylineno;
+
 %}
 
-%union
-{
+%code requires {
+    typedef struct op_struct{
     int intValue;
-    float floatValue;
-    char *stringValue;
+    double floatValue;
+    int isInt;
+} op_struct;
+
+op_struct add(op_struct, op_struct);
+op_struct sub(op_struct, op_struct);
+op_struct mul(op_struct, op_struct);
+op_struct divide(op_struct, op_struct);
+
 }
+
+
+%union {
+    int intValue;
+    double floatValue;
+    char *stringValue;
+    op_struct myStruct;
+};
 
 
 %token <intValue> INT
@@ -50,8 +67,6 @@ extern int yylineno;
 
 %start program
 
-%type<intValue> exprINT;
-%type<floatValue> exprFLOAT;
 %type<stringValue> import_stmt;
 %type<stringValue> import_stmt2;
 %type<stringValue> function_call;
@@ -59,6 +74,7 @@ extern int yylineno;
 %type<stringValue> if_cmd;
 %type<stringValue> classdef;
 %type<stringValue> assignment;
+%type<myStruct> expr;
 
 %%
 
@@ -98,31 +114,17 @@ import_stmt2:
 
 assignment:
         IDENTIFIER '=' STRING          { printf("Variable: %s | value: %s\n", $1, $3); }
-        | IDENTIFIER '=' exprFLOAT     { printf("Variable: %s | value: %f\n", $1, $3); }
-        | IDENTIFIER '=' exprINT       { printf("Variable: %s | value: %d\n", $1, $3); }
+        | IDENTIFIER '=' expr          { $<myStruct>3.isInt == 1 ? printf("Variable: %s | value: %d\n", $1, $<myStruct>3.intValue) : printf("Variable: %s | value: %lf\n", $1, $<myStruct>3.floatValue); }
         | IDENTIFIER '=' function_call { printf("Variable: %s | function: %s\n", $1, $3); }
         ;
 
-
-exprINT:
-        '-' INT                        { $$ = -$2; /*printf("111-%d\n", $2);*/ }
-        | INT                          { $$ = $1; /*printf("111-%d\n", $1);*/ }
-        | '+' INT                      { $$ = $2; /*printf("111-%d\n", $2);*/ }
-        | exprINT '+' exprINT          { $$ = $1 + $3; /*printf("%d + %d\n", $1, $3);*/ }
-        | exprINT '-' exprINT          { $$ = $1 - $3; /*printf("%d - %d\n", $1, $3);*/ }
-        | exprINT '*' exprINT          { $$ = $1 * $3; /*printf("%d * %d\n", $1, $3);*/ }
-        | exprINT '/' exprINT          { $$ = $1 / $3; /*printf("%d / %d\n", $1, $3);*/ }
-        ;
-
-
-exprFLOAT:
-        '-' FLOAT                      { $$ = -$2; /*printf("111-%f\n", $2);*/ }
-        | FLOAT                        { $$ = $1; /*printf("222-%f\n", $1);*/ }
-        | '+' FLOAT                    { $$ = $2; /*printf("222-%f\n", $2);*/ }
-        | exprFLOAT '+' exprFLOAT      { $$ = $1 + $3; /*printf("%f + %f\n", $1, $3);*/ }
-        | exprFLOAT '-' exprFLOAT      { $$ = $1 - $3; /*printf("%f - %f\n", $1, $3);*/ }
-        | exprFLOAT '*' exprFLOAT      { $$ = $1 * $3; /*printf("%f * %f\n", $1, $3);*/ }
-        | exprFLOAT '/' exprFLOAT      { $$ = $1 / $3; /*printf("%f / %f\n", $1, $3);*/ }
+expr:
+        FLOAT                          { $<myStruct>$.floatValue = $1; $<myStruct>$.isInt = 0; }
+        | INT                          { $<myStruct>$.intValue = $1; $<myStruct>$.isInt = 1; }
+        | expr '+' expr                { $$ = add($<myStruct>1, $<myStruct>3); }
+        | expr '-' expr                { $$ = sub($<myStruct>1, $<myStruct>3); }
+        | expr '*' expr                { $$ = mul($<myStruct>1, $<myStruct>3); }
+        | expr '/' expr                { $$ = divide($<myStruct>1, $<myStruct>3); }
         ;
 
 
@@ -154,8 +156,7 @@ else_cmd:
         ;
 
 expression:
-        exprINT ARITHMETIC_OP exprINT
-        | exprFLOAT ARITHMETIC_OP exprFLOAT
+        expr ARITHMETIC_OP expr
         ;
 
 
@@ -176,8 +177,7 @@ parameters:
 
 arguments:
         IDENTIFIER
-        | exprINT
-        | exprFLOAT
+        | expr
         | STRING
         | assignment
         | arguments ',' arguments
@@ -195,7 +195,109 @@ list:
 %%
 
 
+op_struct add(op_struct a, op_struct b) {
+    
+    op_struct result;
 
+    if(a.isInt == 1 && b.isInt ==1){
+        result.intValue = a.intValue + b.intValue;
+        result.isInt = 1;
+    }
+    else{
+        result.floatValue;
+        result.isInt = 0;
+
+        if(a.isInt == 1)
+            result.floatValue = a.intValue;
+        else
+            result.floatValue = a.floatValue;
+
+        if(b.isInt == 1)
+            result.floatValue += b.intValue;
+        else
+            result.floatValue += b.floatValue;
+    }
+
+    return result;
+}
+
+op_struct sub(op_struct a, op_struct b) {
+    
+    op_struct result;
+
+    if(a.isInt == 1 && b.isInt ==1){
+        result.intValue = a.intValue - b.intValue;
+        result.isInt = 1;
+    }
+    else{
+        result.floatValue;
+        result.isInt = 0;
+
+        if(a.isInt == 1)
+            result.floatValue = a.intValue;
+        else
+            result.floatValue = a.floatValue;
+
+        if(b.isInt == 1)
+            result.floatValue -= b.intValue;
+        else
+            result.floatValue -= b.floatValue;
+    }
+
+    return result;
+}
+
+op_struct mul(op_struct a, op_struct b) {
+    
+    op_struct result;
+
+    if(a.isInt == 1 && b.isInt ==1){
+        result.intValue = a.intValue * b.intValue;
+        result.isInt = 1;
+    }
+    else{
+        result.floatValue;
+        result.isInt = 0;
+
+        if(a.isInt == 1)
+            result.floatValue = a.intValue;
+        else
+            result.floatValue = a.floatValue;
+
+        if(b.isInt == 1)
+            result.floatValue *= b.intValue;
+        else
+            result.floatValue *= b.floatValue;
+    }
+
+    return result;
+}
+
+op_struct divide(op_struct a, op_struct b) {
+    
+    op_struct result;
+
+    if(a.isInt == 1 && b.isInt ==1){
+        result.intValue = a.intValue / b.intValue;
+        result.isInt = 1;
+    }
+    else{
+        result.floatValue;
+        result.isInt = 0;
+
+        if(a.isInt == 1)
+            result.floatValue = a.intValue;
+        else
+            result.floatValue = a.floatValue;
+
+        if(b.isInt == 1)
+            result.floatValue /= b.intValue;
+        else
+            result.floatValue /= b.floatValue;
+    }
+
+    return result;
+}
 
 
 void yyerror(char *s) {
@@ -214,3 +316,17 @@ int main ( int argc, char **argv  )
     yyparse();
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

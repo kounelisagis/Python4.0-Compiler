@@ -10,7 +10,7 @@ if 5>3:
 	x = 1
 
 if 5<3:
-	x = 1
+	x = 1.6
 elif 5>3:
 	x = 2
 
@@ -41,3 +41,10 @@ print("this is a test for print")
 for i in [3, 1, 7, 65]:
 	x = 6
 
+w = 3 + 5  
+x = 3 + 5.5
+y = 3.3 + 5.5
+
+c = 2/3
+e = 2.0/3
+d = 2*9.9
