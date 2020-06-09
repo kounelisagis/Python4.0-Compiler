@@ -41,9 +41,10 @@ print("this is a test for print")
 for i in [3, 1, 7, 65]:
 	x = 6
 
-w = 3 + 5  
-x = 3 + 5.5
-y = 3.3 + 5.5
+kappa = -2
+w = 3 + 5 
+x = 3 + w
+y = 3.3 - kappa
 
 c = 2/3
 e = 2.0/3

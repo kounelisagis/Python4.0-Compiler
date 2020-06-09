@@ -4,11 +4,14 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include "linked_list.c"
+
+node_t * variables = NULL;
+
 
 
 void yyerror(char *);
 int yylex();
-
 
 extern FILE *yyin;
 extern FILE *yyout;
@@ -20,7 +23,7 @@ extern int yylineno;
     typedef struct op_struct{
     int intValue;
     double floatValue;
-    int isInt;
+    int type;
 } op_struct;
 
 op_struct add(op_struct, op_struct);
@@ -65,7 +68,7 @@ op_struct divide(op_struct, op_struct);
 %left '=' '+' '-' '*' '/' '(' ')' ':' ',' '[' ']'
 
 
-%start program
+%start start
 
 %type<stringValue> import_stmt;
 %type<stringValue> import_stmt2;
@@ -78,10 +81,13 @@ op_struct divide(op_struct, op_struct);
 
 %%
 
+start:
+    program { print_list(variables); }
+    ;
 
 program:
-        /* empty */
-        | main NEWLINE program
+        /* empty */ 
+        | main NEWLINE program 
         | main
         ;
 
@@ -113,14 +119,29 @@ import_stmt2:
 
 
 assignment:
-        IDENTIFIER '=' STRING          { printf("Variable: %s | value: %s\n", $1, $3); }
-        | IDENTIFIER '=' expr          { $<myStruct>3.isInt == 1 ? printf("Variable: %s | value: %d\n", $1, $<myStruct>3.intValue) : printf("Variable: %s | value: %lf\n", $1, $<myStruct>3.floatValue); }
+        IDENTIFIER '=' STRING          { printf("Variable: %s | value: %s\n", $1, $3);
+                                        variables = assign_variable(variables, $1, STRING_VALUE, -1, -1, $3);}
+        | IDENTIFIER '=' expr          { if($<myStruct>3.type == 0) {
+                                            printf("Variable: %s | value: %d\n", $1, $<myStruct>3.intValue);
+                                            variables = assign_variable(variables, $1, INTEGER_VALUE, $<myStruct>3.intValue, -1, NULL);
+                                        }
+                                        else{
+                                            printf("Variable: %s | value: %lf\n", $1, $<myStruct>3.floatValue);
+                                            variables = assign_variable(variables, $1, FLOAT_VALUE, -1, $<myStruct>3.floatValue, NULL);
+                                        }}
         | IDENTIFIER '=' function_call { printf("Variable: %s | function: %s\n", $1, $3); }
         ;
 
 expr:
-        FLOAT                          { $<myStruct>$.floatValue = $1; $<myStruct>$.isInt = 0; }
-        | INT                          { $<myStruct>$.intValue = $1; $<myStruct>$.isInt = 1; }
+        /* empty */                    { $<myStruct>$.floatValue = 0; $<myStruct>$.intValue = 0;}
+        | IDENTIFIER                   { Variable* v = find_variable(variables, $1);
+                                        if(v){
+                                            $<myStruct>$.floatValue = v->floatValue;
+                                            $<myStruct>$.intValue = v->intValue; }
+                                        else
+                                            printf("Variable %s does not exist", $1);}
+        | FLOAT                        { $<myStruct>$.floatValue = $1; $<myStruct>$.type = 1; }
+        | INT                          { $<myStruct>$.intValue = $1; $<myStruct>$.type = 0; }
         | expr '+' expr                { $$ = add($<myStruct>1, $<myStruct>3); }
         | expr '-' expr                { $$ = sub($<myStruct>1, $<myStruct>3); }
         | expr '*' expr                { $$ = mul($<myStruct>1, $<myStruct>3); }
@@ -176,8 +197,7 @@ parameters:
         ;
 
 arguments:
-        IDENTIFIER
-        | expr
+        expr
         | STRING
         | assignment
         | arguments ',' arguments
@@ -199,20 +219,20 @@ op_struct add(op_struct a, op_struct b) {
     
     op_struct result;
 
-    if(a.isInt == 1 && b.isInt ==1){
+    if(a.type == 0 && b.type == 0){
         result.intValue = a.intValue + b.intValue;
-        result.isInt = 1;
+        result.type = 0;
     }
     else{
         result.floatValue;
-        result.isInt = 0;
+        result.type = 1;
 
-        if(a.isInt == 1)
+        if(a.type == 0)
             result.floatValue = a.intValue;
         else
             result.floatValue = a.floatValue;
 
-        if(b.isInt == 1)
+        if(b.type == 0)
             result.floatValue += b.intValue;
         else
             result.floatValue += b.floatValue;
@@ -225,20 +245,20 @@ op_struct sub(op_struct a, op_struct b) {
     
     op_struct result;
 
-    if(a.isInt == 1 && b.isInt ==1){
+    if(a.type == 0 && b.type == 0){
         result.intValue = a.intValue - b.intValue;
-        result.isInt = 1;
+        result.type = 0;
     }
     else{
         result.floatValue;
-        result.isInt = 0;
+        result.type = 1;
 
-        if(a.isInt == 1)
+        if(a.type == 0)
             result.floatValue = a.intValue;
         else
             result.floatValue = a.floatValue;
 
-        if(b.isInt == 1)
+        if(b.type == 0)
             result.floatValue -= b.intValue;
         else
             result.floatValue -= b.floatValue;
@@ -251,20 +271,20 @@ op_struct mul(op_struct a, op_struct b) {
     
     op_struct result;
 
-    if(a.isInt == 1 && b.isInt ==1){
+    if(a.type == 0 && b.type == 0){
         result.intValue = a.intValue * b.intValue;
-        result.isInt = 1;
+        result.type = 0;
     }
     else{
         result.floatValue;
-        result.isInt = 0;
+        result.type = 1;
 
-        if(a.isInt == 1)
+        if(a.type == 0)
             result.floatValue = a.intValue;
         else
             result.floatValue = a.floatValue;
 
-        if(b.isInt == 1)
+        if(b.type == 0)
             result.floatValue *= b.intValue;
         else
             result.floatValue *= b.floatValue;
@@ -277,20 +297,20 @@ op_struct divide(op_struct a, op_struct b) {
     
     op_struct result;
 
-    if(a.isInt == 1 && b.isInt ==1){
+    if(a.type == 0 && b.type == 0){
         result.intValue = a.intValue / b.intValue;
-        result.isInt = 1;
+        result.type = 0;
     }
     else{
         result.floatValue;
-        result.isInt = 0;
+        result.type = 1;
 
-        if(a.isInt == 1)
+        if(a.type == 0)
             result.floatValue = a.intValue;
         else
             result.floatValue = a.floatValue;
 
-        if(b.isInt == 1)
+        if(b.type == 0)
             result.floatValue /= b.intValue;
         else
             result.floatValue /= b.floatValue;

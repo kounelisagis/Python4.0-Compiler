@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+char* remove_quotes(char*);
 %}
 
 %option noyywrap
@@ -62,7 +64,7 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 
 {float}         { /*printf("float\n");*/ yylval.floatValue = atof(yytext); return FLOAT; }
 
-{string}        { /*printf("string\n");*/ yylval.stringValue = strdup(yytext); return STRING; }
+{string}        { /*printf("string\n");*/ yylval.stringValue = remove_quotes(strdup(yytext)); return STRING; }
 
 {arithmetic_op} { /*printf("comparison\n");*/ yylval.stringValue = "arithmetic_op"; return ARITHMETIC_OP; }
 
@@ -92,3 +94,14 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 
 
 %%
+
+
+char* remove_quotes(char* c){
+    int i=0;
+    char* new_char = c+1;
+    while(new_char[i] != '\"'){
+        i++;
+    }
+    *(new_char+i) = '\0';
+    return new_char;
+}
