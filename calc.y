@@ -66,7 +66,7 @@ op_struct divide(op_struct, op_struct);
 %token <stringValue> LAMBDA
 
 
-%left '=' '+' '-' '*' '/' '(' ')' ':' ',' '[' ']'
+%left '=' '+' '-' '*' '/' '(' ')' ':' ',' '[' ']' '{' '}'
 
 
 %start start
@@ -132,6 +132,7 @@ assignment:
                                             variables = assign_variable(variables, $1, FLOAT_VALUE, -1, $<myStruct>3.floatValue, NULL);
                                         }}
         | IDENTIFIER '=' function_call { printf("Variable: %s | function: %s\n", $1, $3); }
+        | IDENTIFIER '=' dictionary    { printf("Dictionary %s\n", $1);}
         ;
 
 expr:
@@ -229,6 +230,21 @@ lambda:
         LAMBDA def_arguments ':' { lambda_flag = 1; } expr { lambda_flag = 0; }
         ;
 
+dictionary:
+        '{' dict'}'
+        | '{' '}'
+        ;
+
+dict:
+        dict_element ':' dict_element
+        | dict_element ':' dictionary
+        | dict ',' dict
+        ;
+
+dict_element:
+        STRING
+        | expr
+        ;
 %%
 
 

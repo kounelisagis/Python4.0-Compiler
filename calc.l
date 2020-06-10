@@ -92,6 +92,10 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 
 "]"             { /*printf("]\n");*/ return ']'; }
 
+"{"             { /*printf("{\n");*/ return '{'; }
+
+"}"             { /*printf("}\n");*/ return '}'; }
+
 . ;
 
 
