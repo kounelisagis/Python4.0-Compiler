@@ -7,7 +7,7 @@
 #include "linked_list.c"
 
 node_t * variables = NULL;
-
+int lambda_flag = 0;
 
 
 void yyerror(char *);
@@ -63,6 +63,7 @@ op_struct divide(op_struct, op_struct);
 %token <stringValue> DEF
 %token <stringValue> FOR
 %token <stringValue> PRINT
+%token <stringValue> LAMBDA
 
 
 %left '=' '+' '-' '*' '/' '(' ')' ':' ',' '[' ']'
@@ -101,6 +102,7 @@ main:
         | assignment
         | function_def                  { printf("Function defined with name: %s\n", $1); }
         | function_call                 { printf("A function call here! %s\n", $1); }
+        | lambda                        { printf("Lambda function call here!\n"); }
         | INLINE_COMMENT                { printf("A comment here! %s\n", $1); }
         | MULTILINE_COMMENT             { printf("A comment here! %s\n", $1); }
         | PRINT '(' STRING ')'          { printf("Print: %s\n", $3); }
@@ -133,13 +135,20 @@ assignment:
         ;
 
 expr:
-        /* empty */                    { $<myStruct>$.floatValue = 0; $<myStruct>$.intValue = 0;}
-        | IDENTIFIER                   { Variable* v = find_variable(variables, $1);
+        /* empty */                    { if(!lambda_flag){ 
+                                            $<myStruct>$.floatValue = 0; $<myStruct>$.intValue = 0; } 
+                                        else{ 
+                                            printf("LABDMA CALCULUS EMPTY ARGUMENTS! - line %d\n", yylineno);
+                                            YYABORT; }}
+        | IDENTIFIER                   {if(!lambda_flag){
+                                        Variable* v = find_variable(variables, $1);
                                         if(v){
                                             $<myStruct>$.floatValue = v->floatValue;
                                             $<myStruct>$.intValue = v->intValue; }
-                                        else
-                                            printf("Variable %s does not exist", $1);}
+                                        else {
+                                            printf("Variable %s does not exist - line %d\n", $1, yylineno);
+                                            YYABORT;
+                                            } } }
         | FLOAT                        { $<myStruct>$.floatValue = $1; $<myStruct>$.type = 1; }
         | INT                          { $<myStruct>$.intValue = $1; $<myStruct>$.type = 0; }
         | expr '+' expr                { $$ = add($<myStruct>1, $<myStruct>3); }
@@ -182,34 +191,42 @@ expression:
 
 
 function_def:
-        DEF IDENTIFIER parameters ':' NEWLINE suite { $$ = $2; }
+        DEF IDENTIFIER '(' def_arguments ')' ':' NEWLINE suite { $$ = $2; }
         ;
 
 
 function_call:
-        IDENTIFIER parameters { $$ = $1; }
+        IDENTIFIER '(' call_arguments ')' { $$ = $1; }
         ;
 
 
-parameters:
-        '(' ')'
-        | '(' arguments ')'
-        ;
-
-arguments:
+call_arguments:
         expr
         | STRING
         | assignment
-        | arguments ',' arguments
+        | call_arguments ',' call_arguments
         ;
+
+def_arguments:
+        /* empty */
+        | IDENTIFIER
+        | assignment
+        | def_arguments ',' def_arguments
+        ;
+
 
 for_cmd:
         FOR IDENTIFIER IN list ':' NEWLINE suite
         ;
 
+
 list:
-        '[' ']'
-        | '[' arguments ']'
+        '[' call_arguments ']'
+        ;
+
+
+lambda:
+        LAMBDA def_arguments ':' { lambda_flag = 1; } expr { lambda_flag = 0; }
         ;
 
 %%
@@ -336,17 +353,3 @@ int main ( int argc, char **argv  )
     yyparse();
     return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

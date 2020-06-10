@@ -38,6 +38,8 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 
 "import"        { /*printf("import\n");*/ yylval.stringValue = "import"; return IMPORT; }
 
+"lambda"         { /*printf("lambda\n");*/ yylval.stringValue = "lambda"; return LAMBDA; }
+
 "class"         { /*printf("class\n");*/ yylval.stringValue = "class"; return CLASS; }
 
 "if"            { /*printf("if\n");*/ yylval.stringValue = "if"; return IF; }
