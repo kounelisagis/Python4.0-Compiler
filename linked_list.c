@@ -2,10 +2,27 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #define INTEGER_VALUE 0
 #define FLOAT_VALUE 1
 #define STRING_VALUE 2
+#define DICTIONARY 3
+
+
+// typedef struct Dictionary{
+
+//     /* key */
+
+//     int key_type;
+
+//     int key_intValue;
+//     double key_floatValue;
+//     char* key_stringValue;
+
+//     /* value */
+
+//     Variable value;
+
+// } Dictionary;
 
 
 typedef struct Variable{
@@ -15,6 +32,10 @@ typedef struct Variable{
     int intValue;
     double floatValue;
     char* stringValue;
+
+    // Dictionary * dictionary;
+    // Variable * next_level;
+
 } Variable;
 
 
@@ -47,6 +68,7 @@ void print_list(node_t * head) {
 node_t * push_front(node_t * head, char * name, int type, int intValue, double floatValue, char * stringValue) {
 
     node_t * new_node = (node_t *) malloc(sizeof(node_t));
+    // printf("%s\n", name);
 
     new_node->val.name = name;
     new_node->val.type = type;
@@ -73,11 +95,11 @@ Variable* find_variable(node_t * head, char * name) {
 
 
 node_t * assign_variable(node_t * head, char * name, int type, int intValue, double floatValue, char * stringValue) {
-    
     Variable* variable_found = find_variable(head, name);
-    
-    if(!variable_found)
+
+    if(!variable_found) {
         return push_front(head, name, type, intValue, floatValue, stringValue);
+    }
     else {
         variable_found->type = type;
         variable_found->intValue = intValue;

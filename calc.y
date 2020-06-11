@@ -1,5 +1,4 @@
 %{
-
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -8,7 +7,7 @@
 
 node_t * variables = NULL;
 int lambda_flag = 0;
-
+char * current_string = NULL;
 
 void yyerror(char *);
 int yylex();
@@ -20,19 +19,23 @@ extern int yylineno;
 %}
 
 %code requires {
-    typedef struct op_struct{
-    int intValue;
-    double floatValue;
-    int type;
-} op_struct;
+    typedef struct {
+        int intValue;
+        double floatValue;
+        char *stringValue;
+        int type;
+    } op_struct;
+
 
 op_struct add(op_struct, op_struct);
 op_struct sub(op_struct, op_struct);
 op_struct mul(op_struct, op_struct);
 op_struct divide(op_struct, op_struct);
+void store_dict_element(op_struct, op_struct);
+void push_element(op_struct);
+void pop_element();
 
 }
-
 
 %union {
     int intValue;
@@ -79,6 +82,7 @@ op_struct divide(op_struct, op_struct);
 %type<stringValue> classdef;
 %type<stringValue> assignment;
 %type<myStruct> expr;
+%type<myStruct> dict_element;
 
 %%
 
@@ -132,7 +136,7 @@ assignment:
                                             variables = assign_variable(variables, $1, FLOAT_VALUE, -1, $<myStruct>3.floatValue, NULL);
                                         }}
         | IDENTIFIER '=' function_call { printf("Variable: %s | function: %s\n", $1, $3); }
-        | IDENTIFIER '=' dictionary    { printf("Dictionary %s\n", $1);}
+        | IDENTIFIER '=' { current_string = $1; } dictionary    { printf("Dictionary %s\n", $1); }
         ;
 
 expr:
@@ -231,21 +235,78 @@ lambda:
         ;
 
 dictionary:
-        '{' dict'}'
+        '{' dict '}'
         | '{' '}'
         ;
 
 dict:
-        dict_element ':' dict_element
-        | dict_element ':' dictionary
+        dict_element ':' dict_element { store_dict_element($<myStruct>1, $<myStruct>3); }
+        | dict_element ':' { push_element($<myStruct>1); } dictionary { pop_element(); }
         | dict ',' dict
         ;
 
 dict_element:
-        STRING
-        | expr
+        STRING { $<myStruct>$.stringValue = $1; $<myStruct>$.type = STRING_VALUE; }
+        | expr { $$ = $1; }
         ;
 %%
+
+
+void store_dict_element(op_struct a, op_struct b) {
+
+    char *temp = malloc(sizeof(char)*100);
+    strcpy(temp, current_string);
+    strcat(temp, "$");
+
+    if (a.type == INTEGER_VALUE) {
+        char str[12];
+        sprintf(str, "%d", a.intValue);
+        strcat(temp, str);
+    } else if (a.type == FLOAT_VALUE) {
+        char str[12];
+        sprintf(str, "%lf", a.floatValue);
+        strcat(temp, str);
+    } else {
+        strcat(temp, "\"");
+        strcat(temp, a.stringValue);
+        strcat(temp, "\"");
+    }
+
+    variables = assign_variable(variables, temp, b.type, b.intValue, b.floatValue, b.stringValue);
+
+}
+
+
+
+void push_element(op_struct a) {
+    strcat(current_string, "$"); 
+
+    if (a.type == INTEGER_VALUE) {
+        char str[12];
+        sprintf(str, "%d", a.intValue);
+        strcat(current_string, str);
+    } else if (a.type == FLOAT_VALUE) {
+        char str[12];
+        sprintf(str, "%lf", a.floatValue);
+        strcat(current_string, str);
+    } else {
+        strcat(current_string, "\"");
+        strcat(current_string, a.stringValue);
+        strcat(current_string, "\"");
+    }
+}
+
+void pop_element() {
+    int i=0;
+    int last_pos;
+
+    while(current_string[i] != '\0') {
+        if(current_string[i] == '$')
+            last_pos = i;
+        i++;
+    }
+    current_string[last_pos] = '\0';
+}
 
 
 op_struct add(op_struct a, op_struct b) {
