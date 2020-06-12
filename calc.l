@@ -1,11 +1,12 @@
 %{
-#include "y.tab.h"  
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "linked_list.h"
+#include "y.tab.h"
 
 char* remove_quotes(char*);
-%}
+%}.c linked_list
 
 %option noyywrap
 %option yylineno

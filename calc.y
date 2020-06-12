@@ -3,14 +3,21 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include "linked_list.c"
+#include "linked_list.h"
 
+
+node_t * dictionaries = NULL;
 node_t * variables = NULL;
+
+void push_dictionary();
+Dictionary * pop_dictionary();
+
 int lambda_flag = 0;
-char * current_string = NULL;
+
 
 void yyerror(char *);
 int yylex();
+
 
 extern FILE *yyin;
 extern FILE *yyout;
@@ -19,6 +26,8 @@ extern int yylineno;
 %}
 
 %code requires {
+
+
     typedef struct {
         int intValue;
         double floatValue;
@@ -27,14 +36,12 @@ extern int yylineno;
     } op_struct;
 
 
-op_struct add(op_struct, op_struct);
-op_struct sub(op_struct, op_struct);
-op_struct mul(op_struct, op_struct);
-op_struct divide(op_struct, op_struct);
-void store_dict_element(op_struct, op_struct);
-void push_element(op_struct);
-void pop_element();
-
+    op_struct add(op_struct, op_struct);
+    op_struct sub(op_struct, op_struct);
+    op_struct mul(op_struct, op_struct);
+    op_struct divide(op_struct, op_struct);
+    void store_element_element(op_struct, op_struct);
+    void store_element_dictionary(op_struct, Dictionary*);
 }
 
 %union {
@@ -42,6 +49,7 @@ void pop_element();
     double floatValue;
     char *stringValue;
     op_struct myStruct;
+    Dictionary * dictionary;
 };
 
 
@@ -83,6 +91,8 @@ void pop_element();
 %type<stringValue> assignment;
 %type<myStruct> expr;
 %type<myStruct> dict_element;
+%type<dictionary> dictionary;
+%type<dictionary> dict;
 
 %%
 
@@ -126,17 +136,18 @@ import_stmt2:
 
 assignment:
         IDENTIFIER '=' STRING          { printf("Variable: %s | value: %s\n", $1, $3);
-                                        variables = assign_variable(variables, $1, STRING_VALUE, -1, -1, $3);}
+                                        variables = assign_variable(variables, $1, STRING_VALUE, -1, -1, $3, NULL);}
         | IDENTIFIER '=' expr          { if($<myStruct>3.type == 0) {
                                             printf("Variable: %s | value: %d\n", $1, $<myStruct>3.intValue);
-                                            variables = assign_variable(variables, $1, INTEGER_VALUE, $<myStruct>3.intValue, -1, NULL);
+                                            variables = assign_variable(variables, $1, INTEGER_VALUE, $<myStruct>3.intValue, -1, NULL, NULL);
                                         }
                                         else{
                                             printf("Variable: %s | value: %lf\n", $1, $<myStruct>3.floatValue);
-                                            variables = assign_variable(variables, $1, FLOAT_VALUE, -1, $<myStruct>3.floatValue, NULL);
+                                            variables = assign_variable(variables, $1, FLOAT_VALUE, -1, $<myStruct>3.floatValue, NULL, NULL);
                                         }}
         | IDENTIFIER '=' function_call { printf("Variable: %s | function: %s\n", $1, $3); }
-        | IDENTIFIER '=' { current_string = $1; } dictionary    { printf("Dictionary %s\n", $1); }
+        | IDENTIFIER '=' dictionary    {    variables = assign_variable(variables, $1, DICTIONARY, -1, -1, NULL, $3);
+                                            printf("Dictionary %s\n", $1); }
         ;
 
 expr:
@@ -234,79 +245,114 @@ lambda:
         LAMBDA def_arguments ':' { lambda_flag = 1; } expr { lambda_flag = 0; }
         ;
 
+
+
 dictionary:
-        '{' dict '}'
-        | '{' '}'
+        '{' { push_dictionary(); } dict '}' { $$ = pop_dictionary(); }
+        | '{' '}' { $$ = (Dictionary*)malloc(sizeof(Dictionary)); $$->keys = NULL; $$->values = NULL; }
         ;
 
+
 dict:
-        dict_element ':' dict_element { store_dict_element($<myStruct>1, $<myStruct>3); }
-        | dict_element ':' { push_element($<myStruct>1); } dictionary { pop_element(); }
+        dict_element ':' dict_element { store_element_element($<myStruct>1, $<myStruct>3); }
+        | dict_element ':' dictionary { store_element_dictionary($<myStruct>1, $3);/*$$ = $3;*/ }
         | dict ',' dict
         ;
+
 
 dict_element:
         STRING { $<myStruct>$.stringValue = $1; $<myStruct>$.type = STRING_VALUE; }
         | expr { $$ = $1; }
         ;
+
 %%
 
+void push_dictionary(){
+    Dictionary * current_dictionary = (Dictionary*)malloc(sizeof(Dictionary));
+    current_dictionary->keys = NULL; current_dictionary->values = NULL;
 
-void store_dict_element(op_struct a, op_struct b) {
+    // push
+    node_t * new_node = (node_t*)malloc(sizeof(node_t));
+    new_node->val.dictionary = current_dictionary;
+    new_node->next = dictionaries;
+    dictionaries = new_node;
+}
 
-    char *temp = malloc(sizeof(char)*100);
-    strcpy(temp, current_string);
-    strcat(temp, "$");
 
-    if (a.type == INTEGER_VALUE) {
-        char str[12];
-        sprintf(str, "%d", a.intValue);
-        strcat(temp, str);
-    } else if (a.type == FLOAT_VALUE) {
-        char str[12];
-        sprintf(str, "%lf", a.floatValue);
-        strcat(temp, str);
-    } else {
-        strcat(temp, "\"");
-        strcat(temp, a.stringValue);
-        strcat(temp, "\"");
-    }
-
-    variables = assign_variable(variables, temp, b.type, b.intValue, b.floatValue, b.stringValue);
-
+Dictionary * pop_dictionary() {
+    Dictionary * temp = dictionaries->val.dictionary;
+    dictionaries = dictionaries->next;
+    return temp;
 }
 
 
 
-void push_element(op_struct a) {
-    strcat(current_string, "$"); 
+void store_element_dictionary(op_struct a, Dictionary * inner_dictionary) {
 
-    if (a.type == INTEGER_VALUE) {
-        char str[12];
-        sprintf(str, "%d", a.intValue);
-        strcat(current_string, str);
-    } else if (a.type == FLOAT_VALUE) {
-        char str[12];
-        sprintf(str, "%lf", a.floatValue);
-        strcat(current_string, str);
-    } else {
-        strcat(current_string, "\"");
-        strcat(current_string, a.stringValue);
-        strcat(current_string, "\"");
-    }
+    Dictionary * current_dictionary = dictionaries->val.dictionary;
+
+    node_t * new_key = (node_t*)malloc(sizeof(node_t));
+    new_key->next = NULL;
+
+    new_key->val.type = a.type;
+    new_key->val.intValue = a.intValue;
+    new_key->val.floatValue = a.floatValue;
+    new_key->val.stringValue = a.stringValue;
+    new_key->val.dictionary = NULL;
+
+    // push front
+    new_key->next = current_dictionary->keys;
+    current_dictionary->keys = new_key;
+
+
+
+    node_t * new_value = (node_t*)malloc(sizeof(node_t));
+    new_value->next = NULL;
+
+    new_value->val.type = DICTIONARY;
+    new_value->val.dictionary = inner_dictionary;
+
+    // push front
+    new_value->next = current_dictionary->values;
+    current_dictionary->values = new_value;
+
 }
 
-void pop_element() {
-    int i=0;
-    int last_pos;
 
-    while(current_string[i] != '\0') {
-        if(current_string[i] == '$')
-            last_pos = i;
-        i++;
-    }
-    current_string[last_pos] = '\0';
+void store_element_element(op_struct a, op_struct b) {
+
+    Dictionary * current_dictionary = dictionaries->val.dictionary;
+
+    node_t * new_key = (node_t*)malloc(sizeof(node_t));
+    new_key->next = NULL;
+
+    new_key->val.type = a.type;
+    new_key->val.intValue = a.intValue;
+    new_key->val.floatValue = a.floatValue;
+    new_key->val.stringValue = a.stringValue;
+    new_key->val.dictionary = NULL;
+
+    // push front
+    new_key->next = current_dictionary->keys;
+    current_dictionary->keys = new_key;
+
+
+
+    node_t * new_value = (node_t*)malloc(sizeof(node_t));
+    new_value->next = NULL;
+
+    new_value->val.type = b.type;
+    new_value->val.intValue = b.intValue;
+    new_value->val.floatValue = b.floatValue;
+    new_value->val.stringValue = b.stringValue;
+    new_value->val.dictionary = NULL;
+
+    // push front
+    new_value->next = current_dictionary->values;
+    current_dictionary->values = new_value;
+
 }
+
 
 
 op_struct add(op_struct a, op_struct b) {
