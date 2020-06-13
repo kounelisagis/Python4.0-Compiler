@@ -8,10 +8,12 @@
 
 node_t * dictionaries = NULL;
 node_t * variables = NULL;
+node_t * arguments_stack = NULL;
+
 
 void push_dictionary();
 Dictionary * pop_dictionary();
-void dict_items(Dictionary *);
+int dict_items(char*);
 
 int lambda_flag = 0;
 
@@ -79,12 +81,12 @@ extern int yylineno;
 %token <stringValue> AS
 
 
-%left '=' '+' '-' '*' '/' '(' ')' ':' '.' ',' '[' ']' '{' '}'
-
+%left '=' '+' '-' '*' '/' '(' ')' ':' '.' '[' ']' '{' '}' ','
 
 %start start
 
 %type<stringValue> import_stmt;
+%type<stringValue> call_arguments;
 %type<stringValue> package;
 %type<stringValue> function_call;
 %type<stringValue> class_function_call;
@@ -142,7 +144,7 @@ package:
 assignment:
         IDENTIFIER '=' STRING          { printf("Variable: %s | value: %s\n", $1, $3);
                                         variables = assign_variable(variables, $1, STRING_VALUE, -1, -1, $3, NULL);}
-        | IDENTIFIER '=' expr          { if($<myStruct>3.type == 0) {
+        | IDENTIFIER '=' expr          { if($<myStruct>3.type == INTEGER_VALUE) {
                                             printf("Variable: %s | value: %d\n", $1, $<myStruct>3.intValue);
                                             variables = assign_variable(variables, $1, INTEGER_VALUE, $<myStruct>3.intValue, -1, NULL, NULL);
                                         }
@@ -217,14 +219,13 @@ function_def:
 
 
 function_call:
-        IDENTIFIER '(' call_arguments ')' { $$ = $1; }
+        IDENTIFIER '(' call_arguments ')' { arguments_stack = push_front(arguments_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); print_list(arguments_stack); arguments_stack = NULL; }
         ;
 
 
 call_arguments:
-        expr
-        | STRING
-        | assignment
+        expr { arguments_stack = push_front(arguments_stack, NULL, $1.type, $1.intValue, $1.floatValue, NULL, NULL); } 
+        | STRING { arguments_stack = push_front(arguments_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); }
         | call_arguments ',' call_arguments
         ;
 
@@ -251,7 +252,6 @@ lambda:
         ;
 
 
-
 dictionary:
         '{' { push_dictionary(); } dict '}' { $$ = pop_dictionary(); }
         | '{' '}' { $$ = (Dictionary*)malloc(sizeof(Dictionary)); $$->keys = NULL; $$->values = NULL; }
@@ -274,36 +274,43 @@ dict_element:
 class_function_call:
         IDENTIFIER '.' function_call { char str[512]; sprintf(str, "%s.%s()", $1, $3); $$ = str;
                                         if(strcmp($3, "items") == 0) {
-                                            Variable* found_variable = find_variable(variables, $1);
-                                            
-                                            if(found_variable){ 
-                                                if(found_variable->type == DICTIONARY) {
-                                                    dict_items(found_variable->dictionary);
-                                                }
-                                                else{
-                                                    if(found_variable->type == INTEGER_VALUE)
-                                                        printf("'int' object has no attribute 'items'\n");
-                                                    else if(found_variable->type == FLOAT_VALUE)
-                                                        printf("'float' object has no attribute 'items'\n");
-                                                    else if(found_variable->type == STRING_VALUE)
-                                                        printf("'str' object has no attribute 'items'\n");
-                                                    YYABORT;
-                                                }
-                                            }
-                                            else{
-                                                printf("name %s is not defined\n", $1);
+                                            int res = dict_items($1);
+                                            if (res == -1) {
                                                 YYABORT;
                                             }
                                         }
-        
-        }
+                                        if(strcmp($3, "setdefault") == 0){
+                                            
+                                        }
+                                     }
         ;
 
 %%
 
 
 
-void dict_items(Dictionary * dict) {
+int dict_items(char * variable_name) {
+
+    Variable* found_variable = find_variable(variables, variable_name);
+    if(found_variable) {
+        if(found_variable->type != DICTIONARY){
+            if(found_variable->type == INTEGER_VALUE)
+                printf("'int' object has no attribute 'items'\n");
+            else if(found_variable->type == FLOAT_VALUE)
+                printf("'float' object has no attribute 'items'\n");
+            else if(found_variable->type == STRING_VALUE)
+                printf("'str' object has no attribute 'items'\n");
+            return -1;
+        }
+    }
+    else {
+        printf("name %s is not defined\n", variable_name);
+        return -1;
+    }
+
+
+    Dictionary * dict = found_variable->dictionary;
+
     node_t * keys = dict->keys;
     node_t * values = dict->values;
     printf("[");
@@ -336,6 +343,8 @@ void dict_items(Dictionary * dict) {
     }
 
     printf("]\n");
+
+    return 0;
 }
 
 

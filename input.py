@@ -53,14 +53,16 @@
 # lambda : 2
 a = 999
 
+test(50, "(kappa)", 2, 3, 4)
+test22(a)
 
-example = {"23":2, "44":{ 2.0 : a, 5:{3:5} }, 6.6:2, "2": 3, "what": {}, 2: "test"}
+# example = {"23":2, "44":{ 2.0 : a, 5:{3:5} }, 6.6:2, "2": 3, "what": {}, 2: "test"}
 
-example.items()
+# example.items()
 
-a.items()
+# a.items()
 
-y.items()
+# y.items()
 
 # import matplotlib.pyplot as plt
 
