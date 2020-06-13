@@ -31,6 +31,7 @@ void print_inner_dictionary(node_t * keys, node_t * values, node_t * start_point
     else
         print_dictionary(values->val.dictionary);
 
+
     if(keys != start_pointer)
         printf(", ");
 
@@ -48,34 +49,6 @@ void print_dictionary(Dictionary * dict_var) {
     print_inner_dictionary(keys, values, keys);
     
     printf("}");
-
-    // while(keys) {
-    //     if(keys->val.type == INTEGER_VALUE)
-    //         printf("%d: ", keys->val.intValue);
-    //     else if(keys->val.type == FLOAT_VALUE)
-    //         printf("%lf: ", keys->val.floatValue);
-    //     else if(keys->val.type == STRING_VALUE)
-    //         printf("\"%s\": ", keys->val.stringValue);
-
-
-    //     if(values->val.type == INTEGER_VALUE)
-    //         printf("%d", values->val.intValue);
-    //     else if(values->val.type == FLOAT_VALUE)
-    //         printf("%lf", values->val.floatValue);
-    //     else if(values->val.type == STRING_VALUE)
-    //         printf("\"%s\"", values->val.stringValue);
-    //     else
-    //         print_dictionary(values->val.dictionary);
-
-
-    //     keys = keys->next;
-    //     values = values->next;
-
-    //     if(keys)
-    //         printf(", ");
-    // }
-
-    // printf("}");
 
 }
 
@@ -118,7 +91,7 @@ node_t * push_front(node_t * head, char * name, int type, int intValue, double f
 }
 
 
-Variable* find_variable(node_t * head, char * name) {
+Variable * find_variable(node_t * head, char * name) {
 
     while(head != NULL) {
         if (strcmp(head->val.name, name) == 0)

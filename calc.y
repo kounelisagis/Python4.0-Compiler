@@ -11,6 +11,7 @@ node_t * variables = NULL;
 
 void push_dictionary();
 Dictionary * pop_dictionary();
+void dict_items(Dictionary *);
 
 int lambda_flag = 0;
 
@@ -75,16 +76,18 @@ extern int yylineno;
 %token <stringValue> FOR
 %token <stringValue> PRINT
 %token <stringValue> LAMBDA
+%token <stringValue> AS
 
 
-%left '=' '+' '-' '*' '/' '(' ')' ':' ',' '[' ']' '{' '}'
+%left '=' '+' '-' '*' '/' '(' ')' ':' '.' ',' '[' ']' '{' '}'
 
 
 %start start
 
 %type<stringValue> import_stmt;
-%type<stringValue> import_stmt2;
+%type<stringValue> package;
 %type<stringValue> function_call;
+%type<stringValue> class_function_call;
 %type<stringValue> function_def;
 %type<stringValue> if_cmd;
 %type<stringValue> classdef;
@@ -116,6 +119,7 @@ main:
         | assignment
         | function_def                  { printf("Function defined with name: %s\n", $1); }
         | function_call                 { printf("A function call here! %s\n", $1); }
+        | class_function_call           { printf("A function call from object! %s\n", $1); }
         | lambda                        { printf("Lambda function call here!\n"); }
         | INLINE_COMMENT                { printf("A comment here! %s\n", $1); }
         | MULTILINE_COMMENT             { printf("A comment here! %s\n", $1); }
@@ -125,12 +129,13 @@ main:
 
 
 import_stmt:
-        IMPORT import_stmt2             { $$ = $2; }
+        IMPORT package { $$ = $2; }
+        | IMPORT package AS IDENTIFIER { char str[512]; sprintf(str, "%s as %s", $2, $4); $$ = str; }
         ;
 
-import_stmt2:
+package:
         IDENTIFIER { $$ = $1; }
-        | MODULE { $$ = $1; }
+        | package '.' package { char str[512]; sprintf(str, "%s.%s", $1, $3); $$ = str; }
         ;
 
 
@@ -265,7 +270,74 @@ dict_element:
         | expr { $$ = $1; }
         ;
 
+
+class_function_call:
+        IDENTIFIER '.' function_call { char str[512]; sprintf(str, "%s.%s()", $1, $3); $$ = str;
+                                        if(strcmp($3, "items") == 0) {
+                                            Variable* found_variable = find_variable(variables, $1);
+                                            
+                                            if(found_variable){ 
+                                                if(found_variable->type == DICTIONARY) {
+                                                    dict_items(found_variable->dictionary);
+                                                }
+                                                else{
+                                                    if(found_variable->type == INTEGER_VALUE)
+                                                        printf("'int' object has no attribute 'items'\n");
+                                                    else if(found_variable->type == FLOAT_VALUE)
+                                                        printf("'float' object has no attribute 'items'\n");
+                                                    else if(found_variable->type == STRING_VALUE)
+                                                        printf("'str' object has no attribute 'items'\n");
+                                                    YYABORT;
+                                                }
+                                            }
+                                            else{
+                                                printf("name %s is not defined\n", $1);
+                                                YYABORT;
+                                            }
+                                        }
+        
+        }
+        ;
+
 %%
+
+
+
+void dict_items(Dictionary * dict) {
+    node_t * keys = dict->keys;
+    node_t * values = dict->values;
+    printf("[");
+
+    while(keys) {
+
+        if(keys->val.type == INTEGER_VALUE)
+            printf("(%d, ", keys->val.intValue);
+        else if(keys->val.type == FLOAT_VALUE)
+            printf("(%lf, ", keys->val.floatValue);
+        else if(keys->val.type == STRING_VALUE)
+            printf("(\"%s\", ", keys->val.stringValue);
+
+
+        if(values->val.type == INTEGER_VALUE)
+            printf("%d", values->val.intValue);
+        else if(values->val.type == FLOAT_VALUE)
+            printf("%lf", values->val.floatValue);
+        else if(values->val.type == STRING_VALUE)
+            printf("\"%s\"", values->val.stringValue);
+        else
+            print_dictionary(values->val.dictionary);
+
+        printf(")");
+        keys = keys->next;
+        values = values->next;
+
+        if(keys)
+            printf(", ");
+    }
+
+    printf("]\n");
+}
+
 
 void push_dictionary(){
     Dictionary * current_dictionary = (Dictionary*)malloc(sizeof(Dictionary));

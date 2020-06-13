@@ -18,7 +18,6 @@ float ({digit}*)\.({num})
 letter [a-zA-Z]
 string \"(\\.|[^"\\])*\"
 identifier ({letter}|_)({letter}|{digit}|_)*
-module ({identifier}\.)*{identifier}
 inlineComment #(\\.|[^\n\\])*
 multilineComment \'\'\'(\\.|[^\\])*\'\'\'
 arithmetic_op <|>|==|>=|<=|<>|!=
@@ -34,6 +33,8 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 {inlineComment} { /*printf("comment\n");*/ yylval.stringValue = strdup(yytext); return INLINE_COMMENT; }
 
 {multilineComment} { /*printf("comment\n");*/ yylval.stringValue = strdup(yytext); return MULTILINE_COMMENT; }
+
+"as"            { /*printf("as\n");*/ yylval.stringValue = "as"; return AS; }
 
 "print"         { /*printf("print\n");*/ yylval.stringValue = "print"; return PRINT; }
 
@@ -61,8 +62,6 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 
 {identifier}    { /*printf("identifier\n");*/ yylval.stringValue = strdup(yytext); return IDENTIFIER; }
 
-{module}        { /*printf("module\n");*/ yylval.stringValue = strdup(yytext); return MODULE; }
-
 {num}           { /*printf("num\n");*/ yylval.intValue = atoi(yytext); return INT; }
 
 {float}         { /*printf("float\n");*/ yylval.floatValue = atof(yytext); return FLOAT; }
@@ -86,6 +85,8 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 ")"             { /*printf(")\n");*/ return ')'; }
 
 ":"             { /*printf(":\n");*/ return ':'; }
+
+"."             { /*printf(".\n");*/ return '.'; }
 
 ","             { /*printf(",\n");*/ return ','; }
 
