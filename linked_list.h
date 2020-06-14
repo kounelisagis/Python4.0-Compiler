@@ -6,6 +6,7 @@
 #define FLOAT_VALUE 1
 #define STRING_VALUE 2
 #define DICTIONARY 3
+#define NONE_VALUE 4
 
 
 typedef struct Variable Variable;
@@ -35,6 +36,7 @@ struct node {
 };
 
 
+void print_variable(Variable *);
 
 void print_inner_dictionary(node_t *, node_t *, node_t *);
 

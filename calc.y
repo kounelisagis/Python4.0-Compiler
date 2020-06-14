@@ -6,18 +6,19 @@
 #include "linked_list.h"
 
 
-node_t * dictionaries = NULL;
-node_t * variables = NULL;
-node_t * arguments_stack = NULL;
-
-
-void push_dictionary();
-Dictionary * pop_dictionary();
-int dict_items(char*);
-
 int lambda_flag = 0;
 
 
+node_t * dictionaries = NULL;
+node_t * variables = NULL;
+node_t * function_stack = NULL;
+
+
+int dict_set_default(char *);
+void print_function_call();
+void push_dictionary();
+Dictionary * pop_dictionary();
+int dict_items(char*);
 void yyerror(char *);
 int yylex();
 
@@ -88,8 +89,6 @@ extern int yylineno;
 %type<stringValue> import_stmt;
 %type<stringValue> call_arguments;
 %type<stringValue> package;
-%type<stringValue> function_call;
-%type<stringValue> class_function_call;
 %type<stringValue> function_def;
 %type<stringValue> if_cmd;
 %type<stringValue> classdef;
@@ -102,7 +101,7 @@ extern int yylineno;
 %%
 
 start:
-    program { print_list(variables); }
+    program { printf("\n\n======VARIABLES=======\n\n"); print_list(variables); }
     ;
 
 program:
@@ -120,8 +119,8 @@ main:
         | import_stmt                   { printf("Imported %s\n", $1); }
         | assignment
         | function_def                  { printf("Function defined with name: %s\n", $1); }
-        | function_call                 { printf("A function call here! %s\n", $1); }
-        | class_function_call           { printf("A function call from object! %s\n", $1); }
+        | function_call                 { printf("A function call here!\n"); print_function_call(); function_stack = NULL; }
+        | class_function_call           { printf("A function call from object!\n"); print_function_call(); function_stack = NULL; }
         | lambda                        { printf("Lambda function call here!\n"); }
         | INLINE_COMMENT                { printf("A comment here! %s\n", $1); }
         | MULTILINE_COMMENT             { printf("A comment here! %s\n", $1); }
@@ -152,13 +151,14 @@ assignment:
                                             printf("Variable: %s | value: %lf\n", $1, $<myStruct>3.floatValue);
                                             variables = assign_variable(variables, $1, FLOAT_VALUE, -1, $<myStruct>3.floatValue, NULL, NULL);
                                         }}
-        | IDENTIFIER '=' function_call { printf("Variable: %s | function: %s\n", $1, $3); }
+        | IDENTIFIER '=' function_call { printf("Variable: %s | function: \n", $1); print_function_call(); function_stack = NULL; }
         | IDENTIFIER '=' dictionary    {    variables = assign_variable(variables, $1, DICTIONARY, -1, -1, NULL, $3);
                                             printf("Dictionary %s\n", $1); }
         ;
 
 expr:
-        /* empty */                    { if(!lambda_flag){ 
+        /* empty */                    { $<myStruct>$.type = NONE_VALUE;
+                                        if(!lambda_flag){ 
                                             $<myStruct>$.floatValue = 0; $<myStruct>$.intValue = 0; } 
                                         else{ 
                                             printf("LABDMA CALCULUS EMPTY ARGUMENTS! - line %d\n", yylineno);
@@ -172,8 +172,8 @@ expr:
                                             printf("Variable %s does not exist - line %d\n", $1, yylineno);
                                             YYABORT;
                                             } } }
-        | FLOAT                        { $<myStruct>$.floatValue = $1; $<myStruct>$.type = 1; }
-        | INT                          { $<myStruct>$.intValue = $1; $<myStruct>$.type = 0; }
+        | FLOAT                        { $<myStruct>$.floatValue = $1; $<myStruct>$.type = FLOAT_VALUE; }
+        | INT                          { $<myStruct>$.intValue = $1; $<myStruct>$.type = INTEGER_VALUE; }
         | expr '+' expr                { $$ = add($<myStruct>1, $<myStruct>3); }
         | expr '-' expr                { $$ = sub($<myStruct>1, $<myStruct>3); }
         | expr '*' expr                { $$ = mul($<myStruct>1, $<myStruct>3); }
@@ -219,15 +219,17 @@ function_def:
 
 
 function_call:
-        IDENTIFIER '(' call_arguments ')' { arguments_stack = push_front(arguments_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); print_list(arguments_stack); arguments_stack = NULL; }
+        IDENTIFIER '(' call_arguments ')' { function_stack = push_front(function_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); /*$$ = function_stack; function_stack = NULL;*/ }
         ;
 
 
 call_arguments:
-        expr { arguments_stack = push_front(arguments_stack, NULL, $1.type, $1.intValue, $1.floatValue, NULL, NULL); } 
-        | STRING { arguments_stack = push_front(arguments_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); }
-        | call_arguments ',' call_arguments
+        expr { if($<myStruct>1.type != NONE_VALUE) function_stack = push_front(function_stack, NULL, $1.type, $1.intValue, $1.floatValue, NULL, NULL); } 
+        | STRING { function_stack = push_front(function_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); }
+        | expr ',' call_arguments { function_stack = push_front(function_stack, NULL, $1.type, $1.intValue, $1.floatValue, NULL, NULL); }
+        | STRING ',' call_arguments { function_stack = push_front(function_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); }
         ;
+
 
 def_arguments:
         /* empty */
@@ -272,24 +274,128 @@ dict_element:
 
 
 class_function_call:
-        IDENTIFIER '.' function_call { char str[512]; sprintf(str, "%s.%s()", $1, $3); $$ = str;
-                                        if(strcmp($3, "items") == 0) {
+        IDENTIFIER '.' function_call {  char * function_name = function_stack->val.stringValue;/*
+                                        function_stack = function_stack->next;
+                                        char str[512]; sprintf(str, "%s.%s()", $1, function_name); $$ = str; printf("======>>> %s\n\n", str);*/
+
+                                        if(strcmp(function_name, "items") == 0) {
                                             int res = dict_items($1);
                                             if (res == -1) {
                                                 YYABORT;
                                             }
                                         }
-                                        if(strcmp($3, "setdefault") == 0){
-                                            
+                                        if(strcmp(function_name, "setdefault") == 0) {
+                                            int res = dict_set_default($1);
+                                            if (res == -1) {
+                                                YYABORT;
+                                            }
+
                                         }
                                      }
         ;
 
 %%
 
+void print_function_call() {
+
+    node_t * temp_stack = function_stack;
+
+    printf("%s(", temp_stack->val.stringValue);
+
+    temp_stack = temp_stack->next;
+
+    while (temp_stack) {
+        print_variable(&temp_stack->val);
+        
+        temp_stack = temp_stack->next;
+        if (temp_stack)
+            printf(", ");
+    }
+
+    printf(")\n");
+}
+
+
+int dict_set_default(char * variable_name) {
+
+    node_t * temp_stack = function_stack->next; // 1st is the name
+
+    if (temp_stack == NULL) {
+        printf("setdefault expected at least 1 arguments\n");
+        return -1;
+    }
+
+
+    Variable * key = &temp_stack->val;
+    // print_variable(key);
+
+    temp_stack = temp_stack->next;
+
+    if(temp_stack) {
+        Variable * value = &temp_stack->val;
+
+        if(temp_stack->next != NULL) {
+            printf("setdefault expected at most 2 arguments, got more\n");
+            return -1;
+        }
+
+        // has 2 arguments
+
+        Variable* found_variable = find_variable(variables, variable_name);
+        if(!found_variable) {
+            printf("name %s is not defined\n", variable_name);
+            return -1;
+        }
+
+        Dictionary * dictionary = found_variable->dictionary;
+        
+        node_t * key_list = dictionary->keys;
+        node_t * value_list = dictionary->values;
+        
+        while(key_list) {
+            Variable * current_key = &key_list->val;
+            Variable * current_value = &value_list->val;
+                
+            if(current_key->type == INTEGER_VALUE && current_key->type == key->type)
+                if(current_key->intValue == key->intValue) {
+                    printf("->> %d\n", current_value->intValue);
+                    return 0;
+                }
+            else if(current_key->type == FLOAT_VALUE && current_key->type == key->type)
+                if(current_key->floatValue == key->floatValue) {
+                    printf("%lf", current_value->floatValue);
+                    return 0;
+                }
+            else if(current_key->type == STRING_VALUE && current_key->type == key->type)
+                if(strcmp(current_key->stringValue, key->stringValue) == 0) {
+                    printf("\"%s\"", current_key->stringValue);
+                    return 0;
+                }
+
+            key_list = key_list->next;
+            value_list = value_list->next;
+        }
+
+        if(!key_list) {
+            dictionary->keys = push_front(dictionary->keys, key->name, key->type, key->intValue, key->floatValue, key->stringValue, NULL);
+            dictionary->values = push_front(dictionary->values, value->name, value->type, value->intValue, value->floatValue, value->stringValue, value->dictionary);
+        }
+
+    } else { // has no value argument
+        ;
+    }
+
+
+
+}
 
 
 int dict_items(char * variable_name) {
+
+    if(function_stack != NULL){
+        printf("items cannot have arguments\n");
+        return -1;
+    }
 
     Variable* found_variable = find_variable(variables, variable_name);
     if(found_variable) {
@@ -317,22 +423,11 @@ int dict_items(char * variable_name) {
 
     while(keys) {
 
-        if(keys->val.type == INTEGER_VALUE)
-            printf("(%d, ", keys->val.intValue);
-        else if(keys->val.type == FLOAT_VALUE)
-            printf("(%lf, ", keys->val.floatValue);
-        else if(keys->val.type == STRING_VALUE)
-            printf("(\"%s\", ", keys->val.stringValue);
+        printf("(");
+        print_variable(&keys->val);
+        printf(", ");
 
-
-        if(values->val.type == INTEGER_VALUE)
-            printf("%d", values->val.intValue);
-        else if(values->val.type == FLOAT_VALUE)
-            printf("%lf", values->val.floatValue);
-        else if(values->val.type == STRING_VALUE)
-            printf("\"%s\"", values->val.stringValue);
-        else
-            print_dictionary(values->val.dictionary);
+        print_variable(&values->val);
 
         printf(")");
         keys = keys->next;
@@ -386,7 +481,6 @@ void store_element_dictionary(op_struct a, Dictionary * inner_dictionary) {
     current_dictionary->keys = new_key;
 
 
-
     node_t * new_value = (node_t*)malloc(sizeof(node_t));
     new_value->next = NULL;
 
@@ -418,7 +512,6 @@ void store_element_element(op_struct a, op_struct b) {
     current_dictionary->keys = new_key;
 
 
-
     node_t * new_value = (node_t*)malloc(sizeof(node_t));
     new_value->next = NULL;
 
@@ -433,7 +526,6 @@ void store_element_element(op_struct a, op_struct b) {
     current_dictionary->values = new_value;
 
 }
-
 
 
 op_struct add(op_struct a, op_struct b) {

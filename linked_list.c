@@ -14,22 +14,26 @@ void print_inner_dictionary(node_t * keys, node_t * values, node_t * start_point
 
     // print
     
-    if(keys->val.type == INTEGER_VALUE)
-        printf("%d: ", keys->val.intValue);
-    else if(keys->val.type == FLOAT_VALUE)
-        printf("%lf: ", keys->val.floatValue);
-    else if(keys->val.type == STRING_VALUE)
-        printf("\"%s\": ", keys->val.stringValue);
+    // if(keys->val.type == INTEGER_VALUE)
+    //     printf("%d: ", keys->val.intValue);
+    // else if(keys->val.type == FLOAT_VALUE)
+    //     printf("%lf: ", keys->val.floatValue);
+    // else if(keys->val.type == STRING_VALUE)
+    //     printf("\"%s\": ", keys->val.stringValue);
 
 
-    if(values->val.type == INTEGER_VALUE)
-        printf("%d", values->val.intValue);
-    else if(values->val.type == FLOAT_VALUE)
-        printf("%lf", values->val.floatValue);
-    else if(values->val.type == STRING_VALUE)
-        printf("\"%s\"", values->val.stringValue);
-    else
-        print_dictionary(values->val.dictionary);
+    // if(values->val.type == INTEGER_VALUE)
+    //     printf("%d", values->val.intValue);
+    // else if(values->val.type == FLOAT_VALUE)
+    //     printf("%lf", values->val.floatValue);
+    // else if(values->val.type == STRING_VALUE)
+    //     printf("\"%s\"", values->val.stringValue);
+    // else
+    //     print_dictionary(values->val.dictionary);
+
+    print_variable(&keys->val);
+    printf(": ");
+    print_variable(&values->val);
 
 
     if(keys != start_pointer)
@@ -53,20 +57,26 @@ void print_dictionary(Dictionary * dict_var) {
 }
 
 
+void print_variable(Variable * var) {
+    if(var->type == INTEGER_VALUE)
+        printf("%d", var->intValue);
+    else if(var->type == FLOAT_VALUE)
+        printf("%lf", var->floatValue);
+    else if(var->type == STRING_VALUE)
+        printf("\"%s\"", var->stringValue);
+    else if(var->type == NONE_VALUE)
+        printf("None");
+    else
+        print_dictionary(var->dictionary);
+}
+
+
 void print_list(node_t * head) {
     node_t * current = head;
 
-
     while (current != NULL) {
         printf("%s: ", current->val.name);
-        if(current->val.type == INTEGER_VALUE)
-            printf("%d", current->val.intValue);
-        else if(current->val.type == FLOAT_VALUE)
-            printf("%lf", current->val.floatValue);
-        else if(current->val.type == STRING_VALUE)
-            printf("%s", current->val.stringValue);
-        else
-            print_dictionary(current->val.dictionary);
+        print_variable(&current->val);
         current = current->next;
         printf("\n");
     }
@@ -84,6 +94,11 @@ node_t * push_front(node_t * head, char * name, int type, int intValue, double f
     new_node->val.floatValue = floatValue;
     new_node->val.stringValue = stringValue;
     new_node->val.dictionary = dictionary;
+
+    if (head == NULL) {
+        new_node->next = NULL;
+        return new_node;
+    }
 
     new_node->next = head;
 
