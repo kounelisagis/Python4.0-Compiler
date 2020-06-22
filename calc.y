@@ -7,7 +7,7 @@
 
 
 int lambda_flag = 0;
-
+int level = 0;
 
 node_t * dictionaries = NULL;
 node_t * variables = NULL;
@@ -31,28 +31,19 @@ extern int yylineno;
 
 %code requires {
 
-
-    typedef struct {
-        int intValue;
-        double floatValue;
-        char *stringValue;
-        int type;
-    } op_struct;
-
-
-    op_struct add(op_struct, op_struct);
-    op_struct sub(op_struct, op_struct);
-    op_struct mul(op_struct, op_struct);
-    op_struct divide(op_struct, op_struct);
-    void store_element_element(op_struct, op_struct);
-    void store_element_dictionary(op_struct, Dictionary*);
+    Variable add(Variable, Variable);
+    Variable sub(Variable, Variable);
+    Variable mul(Variable, Variable);
+    Variable divide(Variable, Variable);
+    void store_element_element(Variable, Variable);
+    void store_element_dictionary(Variable, Dictionary*);
 }
 
 %union {
     int intValue;
     double floatValue;
     char *stringValue;
-    op_struct myStruct;
+    Variable myStruct;
     Dictionary * dictionary;
 };
 
@@ -118,6 +109,7 @@ main:
         | classdef                      { printf("Class defined with name %s\n", $1); }
         | import_stmt                   { printf("Imported %s\n", $1); }
         | assignment
+        | expr
         | function_def                  { printf("Function defined with name: %s\n", $1); }
         | function_call                 { printf("A function call here!\n"); print_function_call(); function_stack = NULL; }
         | class_function_call           { printf("A function call from object!\n"); print_function_call(); function_stack = NULL; }
@@ -125,6 +117,10 @@ main:
         | INLINE_COMMENT                { printf("A comment here! %s\n", $1); }
         | MULTILINE_COMMENT             { printf("A comment here! %s\n", $1); }
         | PRINT '(' STRING ')'          { printf("Print: %s\n", $3); }
+        | PRINT '(' expr ')'            { print_variable(&$<myStruct>3); printf("\n"); }
+        | PRINT '(' IDENTIFIER ')'      { Variable* v = find_variable(variables, $3);
+                                          if(v) { print_variable(v); printf("\n"); }
+                                          else printf("Variable not found!\n"); }
         ;
 
 
@@ -156,16 +152,12 @@ assignment:
                                             printf("Dictionary %s\n", $1); }
         ;
 
+
 expr:
-        /* empty */                    { $<myStruct>$.type = NONE_VALUE;
-                                        if(!lambda_flag){ 
-                                            $<myStruct>$.floatValue = 0; $<myStruct>$.intValue = 0; } 
-                                        else{ 
-                                            printf("LABDMA CALCULUS EMPTY ARGUMENTS! - line %d\n", yylineno);
-                                            YYABORT; }}
-        | IDENTIFIER                   {if(!lambda_flag){
+        IDENTIFIER                   {if(!lambda_flag){
                                         Variable* v = find_variable(variables, $1);
-                                        if(v){
+                                        if(v && v->type == FLOAT_VALUE || v->type == INTEGER_VALUE){
+                                            $<myStruct>$.type = v->type;
                                             $<myStruct>$.floatValue = v->floatValue;
                                             $<myStruct>$.intValue = v->intValue; }
                                         else {
@@ -175,19 +167,23 @@ expr:
         | FLOAT                        { $<myStruct>$.floatValue = $1; $<myStruct>$.type = FLOAT_VALUE; }
         | INT                          { $<myStruct>$.intValue = $1; $<myStruct>$.type = INTEGER_VALUE; }
         | expr '+' expr                { $$ = add($<myStruct>1, $<myStruct>3); }
+        | '+' expr                     { $$ = $<myStruct>2; }
         | expr '-' expr                { $$ = sub($<myStruct>1, $<myStruct>3); }
+        | '-' expr                     { $<myStruct>2.floatValue = -$<myStruct>2.floatValue; $<myStruct>2.intValue = -$<myStruct>2.intValue;
+                                         $$ = $<myStruct>2; }
         | expr '*' expr                { $$ = mul($<myStruct>1, $<myStruct>3); }
         | expr '/' expr                { $$ = divide($<myStruct>1, $<myStruct>3); }
         ;
 
 
 suite:
-        INDENT main suite_
+        INDENT { level++; } main suite_
         ;
 
-suite_: 
-        /* empty */
-        | NEWLINE
+
+suite_:
+        /* empty if last file row */ { level--; }
+        | NEWLINE { level--; }
         | NEWLINE suite
         ;
 
@@ -215,27 +211,28 @@ expression:
 
 function_def:
         DEF IDENTIFIER '(' def_arguments ')' ':' NEWLINE suite { $$ = $2; }
-        ;
-
-
-function_call:
-        IDENTIFIER '(' call_arguments ')' { function_stack = push_front(function_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); /*$$ = function_stack; function_stack = NULL;*/ }
-        ;
-
-
-call_arguments:
-        expr { if($<myStruct>1.type != NONE_VALUE) function_stack = push_front(function_stack, NULL, $1.type, $1.intValue, $1.floatValue, NULL, NULL); } 
-        | STRING { function_stack = push_front(function_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); }
-        | expr ',' call_arguments { function_stack = push_front(function_stack, NULL, $1.type, $1.intValue, $1.floatValue, NULL, NULL); }
-        | STRING ',' call_arguments { function_stack = push_front(function_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); }
+        | DEF IDENTIFIER '(' ')' ':' NEWLINE suite { $$ = $2; }
         ;
 
 
 def_arguments:
-        /* empty */
-        | IDENTIFIER
+        IDENTIFIER
         | assignment
         | def_arguments ',' def_arguments
+        ;
+
+
+function_call:
+        IDENTIFIER '(' call_arguments ')' { function_stack = push_front(function_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); }
+        | IDENTIFIER '(' ')' { function_stack = push_front(function_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); }
+        ;
+
+
+call_arguments:
+        expr { function_stack = push_front(function_stack, NULL, $1.type, $1.intValue, $1.floatValue, NULL, NULL); } 
+        | STRING { function_stack = push_front(function_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); }
+        | expr ',' call_arguments { function_stack = push_front(function_stack, NULL, $1.type, $1.intValue, $1.floatValue, NULL, NULL); }
+        | STRING ',' call_arguments { function_stack = push_front(function_stack, NULL, STRING_VALUE, -1, -1, $1, NULL); }
         ;
 
 
@@ -251,6 +248,7 @@ list:
 
 lambda:
         LAMBDA def_arguments ':' { lambda_flag = 1; } expr { lambda_flag = 0; }
+        | LAMBDA ':' { lambda_flag = 1; } expr { lambda_flag = 0; }
         ;
 
 
@@ -331,61 +329,78 @@ int dict_set_default(char * variable_name) {
 
     temp_stack = temp_stack->next;
 
+    Variable * value = NULL;
     if(temp_stack) {
-        Variable * value = &temp_stack->val;
+        value = &temp_stack->val;
 
         if(temp_stack->next != NULL) {
             printf("setdefault expected at most 2 arguments, got more\n");
             return -1;
         }
+    }
 
-        // has 2 arguments
+        // has 1 or 2 arguments
 
-        Variable* found_variable = find_variable(variables, variable_name);
-        if(!found_variable) {
-            printf("name %s is not defined\n", variable_name);
-            return -1;
-        }
+    Variable* found_variable = find_variable(variables, variable_name);
+    if(!found_variable) {
+        printf("name %s is not defined\n", variable_name);
+        return -1;
+    }
 
-        Dictionary * dictionary = found_variable->dictionary;
-        
-        node_t * key_list = dictionary->keys;
-        node_t * value_list = dictionary->values;
-        
-        while(key_list) {
-            Variable * current_key = &key_list->val;
-            Variable * current_value = &value_list->val;
-                
-            if(current_key->type == INTEGER_VALUE && current_key->type == key->type)
-                if(current_key->intValue == key->intValue) {
-                    printf("->> %d\n", current_value->intValue);
-                    return 0;
-                }
-            else if(current_key->type == FLOAT_VALUE && current_key->type == key->type)
-                if(current_key->floatValue == key->floatValue) {
-                    printf("%lf", current_value->floatValue);
-                    return 0;
-                }
-            else if(current_key->type == STRING_VALUE && current_key->type == key->type)
-                if(strcmp(current_key->stringValue, key->stringValue) == 0) {
-                    printf("\"%s\"", current_key->stringValue);
-                    return 0;
-                }
+    if(found_variable->type != DICTIONARY){
+        if(found_variable->type == INTEGER_VALUE)
+            printf("'int' object has no attribute 'setdefault'\n");
+        else if(found_variable->type == FLOAT_VALUE)
+            printf("'float' object has no attribute 'setdefault'\n");
+        else if(found_variable->type == STRING_VALUE)
+            printf("'str' object has no attribute 'setdefault'\n");
+        return -1;
+    }
 
-            key_list = key_list->next;
-            value_list = value_list->next;
-        }
+    Dictionary * dictionary = found_variable->dictionary;
+    
+    node_t * key_list = dictionary->keys;
+    node_t * value_list = dictionary->values;
+    
+    Variable * current_key = NULL;
+    Variable * current_value = NULL;
 
-        if(!key_list) {
-            dictionary->keys = push_front(dictionary->keys, key->name, key->type, key->intValue, key->floatValue, key->stringValue, NULL);
-            dictionary->values = push_front(dictionary->values, value->name, value->type, value->intValue, value->floatValue, value->stringValue, value->dictionary);
-        }
+    while(key_list) {
+        current_key = &key_list->val;
+        current_value = &value_list->val;
 
-    } else { // has no value argument
-        ;
+        if(current_key->type == INTEGER_VALUE && current_key->type == key->type)
+            if(current_key->intValue == key->intValue) {
+                //printf("->> %d\n", current_value->intValue);
+                break;
+            }
+        else if(current_key->type == FLOAT_VALUE && current_key->type == key->type)
+            if(current_key->floatValue == key->floatValue) {
+                //printf("%lf", current_value->floatValue);
+                break;
+            }
+        else if(current_key->type == STRING_VALUE && current_key->type == key->type)
+            if(strcmp(current_key->stringValue, key->stringValue) == 0) {
+                //printf("\"%s\"", current_key->stringValue);
+                break;
+            }
+
+        key_list = key_list->next;
+        value_list = value_list->next;
     }
 
 
+    if(key_list) { // key found
+        print_variable(current_value);
+        printf("\n");
+    } else { // key not found
+        dictionary->keys = push_front(dictionary->keys, key->name, key->type, key->intValue, key->floatValue, key->stringValue, NULL);
+        if(value) { // 2 arguments
+            dictionary->values = push_front(dictionary->values, value->name, value->type, value->intValue, value->floatValue, value->stringValue, value->dictionary);
+        } else {
+            dictionary->values = push_front(dictionary->values, NULL, NONE_VALUE, -1, -1, NULL, NULL);
+        }
+    }
 
 }
 
@@ -463,7 +478,7 @@ Dictionary * pop_dictionary() {
 
 
 
-void store_element_dictionary(op_struct a, Dictionary * inner_dictionary) {
+void store_element_dictionary(Variable a, Dictionary * inner_dictionary) {
 
     Dictionary * current_dictionary = dictionaries->val.dictionary;
 
@@ -494,7 +509,7 @@ void store_element_dictionary(op_struct a, Dictionary * inner_dictionary) {
 }
 
 
-void store_element_element(op_struct a, op_struct b) {
+void store_element_element(Variable a, Variable b) {
 
     Dictionary * current_dictionary = dictionaries->val.dictionary;
 
@@ -528,24 +543,24 @@ void store_element_element(op_struct a, op_struct b) {
 }
 
 
-op_struct add(op_struct a, op_struct b) {
+Variable add(Variable a, Variable b) {
     
-    op_struct result;
+    Variable result;
 
-    if(a.type == 0 && b.type == 0){
+    if(a.type == INTEGER_VALUE && b.type == INTEGER_VALUE){
         result.intValue = a.intValue + b.intValue;
-        result.type = 0;
+        result.type = INTEGER_VALUE;
     }
     else{
         result.floatValue;
-        result.type = 1;
+        result.type = FLOAT_VALUE;
 
-        if(a.type == 0)
+        if(a.type == INTEGER_VALUE)
             result.floatValue = a.intValue;
         else
             result.floatValue = a.floatValue;
 
-        if(b.type == 0)
+        if(b.type == INTEGER_VALUE)
             result.floatValue += b.intValue;
         else
             result.floatValue += b.floatValue;
@@ -554,9 +569,9 @@ op_struct add(op_struct a, op_struct b) {
     return result;
 }
 
-op_struct sub(op_struct a, op_struct b) {
+Variable sub(Variable a, Variable b) {
     
-    op_struct result;
+    Variable result;
 
     if(a.type == 0 && b.type == 0){
         result.intValue = a.intValue - b.intValue;
@@ -580,9 +595,9 @@ op_struct sub(op_struct a, op_struct b) {
     return result;
 }
 
-op_struct mul(op_struct a, op_struct b) {
+Variable mul(Variable a, Variable b) {
     
-    op_struct result;
+    Variable result;
 
     if(a.type == 0 && b.type == 0){
         result.intValue = a.intValue * b.intValue;
@@ -606,9 +621,9 @@ op_struct mul(op_struct a, op_struct b) {
     return result;
 }
 
-op_struct divide(op_struct a, op_struct b) {
+Variable divide(Variable a, Variable b) {
     
-    op_struct result;
+    Variable result;
 
     if(a.type == 0 && b.type == 0){
         result.intValue = a.intValue / b.intValue;
@@ -638,8 +653,7 @@ void yyerror(char *s) {
 }
 
 
-int main ( int argc, char **argv  ) 
-{
+int main ( int argc, char **argv ) {
     ++argv; --argc;
     if ( argc > 0 )
         yyin = fopen( argv[0], "r" );
