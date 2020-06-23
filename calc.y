@@ -56,7 +56,7 @@ extern int yylineno;
 %token <stringValue> IMPORT
 %token <stringValue> NEWLINE
 %token <stringValue> CLASS
-%token <stringValue> INDENT
+%token <intValue> INDENT
 %token <stringValue> INLINE_COMMENT
 %token <stringValue> MULTILINE_COMMENT
 %token <stringValue> IF
@@ -73,7 +73,9 @@ extern int yylineno;
 %token <stringValue> AS
 
 
-%left '=' '+' '-' '*' '/' '(' ')' ':' '.' '[' ']' '{' '}' ','
+%left '=' '(' ')' ':' '.' '[' ']' '{' '}' ','
+%left '+' '-'
+%left '*' '/'
 
 %start start
 
@@ -105,56 +107,55 @@ program:
 main:
         /* ignore newlines */
         | if_cmd                        { printf("%s\n", $1); }
-        | for_cmd                       { printf("FOR LOOP\n"); }
+        | for_cmd                       { printf("FOR LOOP\n"); function_stack = NULL; }
         | classdef                      { printf("Class defined with name %s\n", $1); }
         | import_stmt                   { printf("Imported %s\n", $1); }
         | assignment
         | expr
         | function_def                  { printf("Function defined with name: %s\n", $1); }
-        | function_call                 { printf("A function call here!\n"); print_function_call(); function_stack = NULL; }
-        | class_function_call           { printf("A function call from object!\n"); print_function_call(); function_stack = NULL; }
-        | lambda                        { printf("Lambda function call here!\n"); }
+        | function_call                 { printf("A function call here!\n"); if(level==0) {print_function_call();} function_stack = NULL; }
+        | class_function_call           { printf("A function call from object!\n"); if(level==0) {print_function_call();} function_stack = NULL; }
+        | lambda                        { printf("Lambda function defined\n"); }
         | INLINE_COMMENT                { printf("A comment here! %s\n", $1); }
         | MULTILINE_COMMENT             { printf("A comment here! %s\n", $1); }
-        | PRINT '(' STRING ')'          { printf("Print: %s\n", $3); }
-        | PRINT '(' expr ')'            { print_variable(&$<myStruct>3); printf("\n"); }
-        | PRINT '(' IDENTIFIER ')'      { Variable* v = find_variable(variables, $3);
+        | PRINT '(' STRING ')'          { if(level==0) {printf("Print: %s\n", $3);} }
+        | PRINT '(' expr ')'            { if(level==0) {print_variable(&$<myStruct>3); printf("\n");} }
+        | PRINT '(' IDENTIFIER ')'      { if(level==0) {Variable* v = find_variable(variables, $3);
                                           if(v) { print_variable(v); printf("\n"); }
-                                          else printf("Variable not found!\n"); }
+                                          else printf("Variable not found!\n");} }
         ;
 
 
 
 import_stmt:
         IMPORT package { $$ = $2; }
-        | IMPORT package AS IDENTIFIER { char str[512]; sprintf(str, "%s as %s", $2, $4); $$ = str; }
+        | IMPORT package AS IDENTIFIER { if(level==0) {char str[512]; sprintf(str, "%s as %s", $2, $4); $$ = str;} }
         ;
 
 package:
         IDENTIFIER { $$ = $1; }
-        | package '.' package { char str[512]; sprintf(str, "%s.%s", $1, $3); $$ = str; }
+        | package '.' package { if(level==0) {char str[512]; sprintf(str, "%s.%s", $1, $3); $$ = str;} }
         ;
 
 
 assignment:
-        IDENTIFIER '=' STRING          { printf("Variable: %s | value: %s\n", $1, $3);
+        IDENTIFIER '=' STRING          { if(level==0) {printf("Variable: %s | value: %s\n", $1, $3);
                                         variables = assign_variable(variables, $1, STRING_VALUE, -1, -1, $3, NULL);}
-        | IDENTIFIER '=' expr          { if($<myStruct>3.type == INTEGER_VALUE) {
-                                            printf("Variable: %s | value: %d\n", $1, $<myStruct>3.intValue);
-                                            variables = assign_variable(variables, $1, INTEGER_VALUE, $<myStruct>3.intValue, -1, NULL, NULL);
-                                        }
-                                        else{
-                                            printf("Variable: %s | value: %lf\n", $1, $<myStruct>3.floatValue);
-                                            variables = assign_variable(variables, $1, FLOAT_VALUE, -1, $<myStruct>3.floatValue, NULL, NULL);
-                                        }}
-        | IDENTIFIER '=' function_call { printf("Variable: %s | function: \n", $1); print_function_call(); function_stack = NULL; }
-        | IDENTIFIER '=' dictionary    {    variables = assign_variable(variables, $1, DICTIONARY, -1, -1, NULL, $3);
-                                            printf("Dictionary %s\n", $1); }
+                                       }
+        | IDENTIFIER '=' expr          { if(level==0) { printf("Variable: %s | value: ", $1); print_variable(&$<myStruct>3); printf("\n");
+                                         variables = assign_variable(variables,  $1, $3.type, $3.intValue, $3.floatValue, NULL, NULL);}
+                                       }
+        | IDENTIFIER '=' function_call { if(level==0) {printf("Variable: %s | function: ", $1); print_function_call(); function_stack = NULL;} }
+        | IDENTIFIER '=' dictionary    { if(level==0) {variables = assign_variable(variables, $1, DICTIONARY, -1, -1, NULL, $3);
+                                         printf("Dictionary %s\n", $1);}
+                                       }
+        | IDENTIFIER '=' lambda        { if(level==0) { printf("Lambda function defined\n"); } }
         ;
 
 
+
 expr:
-        IDENTIFIER                   {if(!lambda_flag){
+        IDENTIFIER                     { if(level==0) {if(!lambda_flag){
                                         Variable* v = find_variable(variables, $1);
                                         if(v && v->type == FLOAT_VALUE || v->type == INTEGER_VALUE){
                                             $<myStruct>$.type = v->type;
@@ -163,38 +164,38 @@ expr:
                                         else {
                                             printf("Variable %s does not exist - line %d\n", $1, yylineno);
                                             YYABORT;
-                                            } } }
-        | FLOAT                        { $<myStruct>$.floatValue = $1; $<myStruct>$.type = FLOAT_VALUE; }
-        | INT                          { $<myStruct>$.intValue = $1; $<myStruct>$.type = INTEGER_VALUE; }
-        | expr '+' expr                { $$ = add($<myStruct>1, $<myStruct>3); }
-        | '+' expr                     { $$ = $<myStruct>2; }
-        | expr '-' expr                { $$ = sub($<myStruct>1, $<myStruct>3); }
-        | '-' expr                     { $<myStruct>2.floatValue = -$<myStruct>2.floatValue; $<myStruct>2.intValue = -$<myStruct>2.intValue;
-                                         $$ = $<myStruct>2; }
-        | expr '*' expr                { $$ = mul($<myStruct>1, $<myStruct>3); }
-        | expr '/' expr                { $$ = divide($<myStruct>1, $<myStruct>3); }
+                                            } } } }
+        | FLOAT                        { if(level==0) {$<myStruct>$.floatValue = $1; $<myStruct>$.type = FLOAT_VALUE;} }
+        | INT                          { if(level==0) {$<myStruct>$.intValue = $1; $<myStruct>$.type = INTEGER_VALUE;} }
+        | expr '+' expr                { if(level==0) {$$ = add($<myStruct>1, $<myStruct>3);} }
+        | '+' expr                     { if(level==0) {$$ = $<myStruct>2;} }
+        | expr '-' expr                { if(level==0) {$$ = sub($<myStruct>1, $<myStruct>3);} }
+        | '-' expr                     { if(level==0) {$<myStruct>2.floatValue = -$<myStruct>2.floatValue; $<myStruct>2.intValue = -$<myStruct>2.intValue;
+                                         $$ = $<myStruct>2;} }
+        | expr '*' expr                { if(level==0) {$$ = mul($<myStruct>1, $<myStruct>3);} }
+        | expr '/' expr                { if(level==0) {$$ = divide($<myStruct>1, $<myStruct>3);} }
         ;
 
 
 suite:
-        INDENT { level++; } main suite_
+        INDENT main suite_
         ;
 
 
 suite_:
-        /* empty if last file row */ { level--; }
-        | NEWLINE { level--; }
+        /* empty if last file row */ 
+        | NEWLINE
         | NEWLINE suite
         ;
 
 
 classdef:
-        CLASS IDENTIFIER ':' NEWLINE suite { $$ = $2; }
+        CLASS IDENTIFIER ':' NEWLINE { level++; } suite { level--; $$ = $2; }
         ;
 
 
 if_cmd:
-        IF expression ':' NEWLINE suite else_cmd { $$ = "If Statement"; }
+        IF expression ':' NEWLINE { level++; } suite else_cmd { level--; $$ = "If Statement"; }
         ;
 
 
@@ -210,8 +211,8 @@ expression:
 
 
 function_def:
-        DEF IDENTIFIER '(' def_arguments ')' ':' NEWLINE suite { $$ = $2; }
-        | DEF IDENTIFIER '(' ')' ':' NEWLINE suite { $$ = $2; }
+        DEF IDENTIFIER '(' def_arguments ')' ':' NEWLINE { level++; } suite { level--; $$ = $2; }
+        | DEF IDENTIFIER '(' ')' ':' NEWLINE { level++; } suite { level--; $$ = $2; }
         ;
 
 
@@ -237,7 +238,7 @@ call_arguments:
 
 
 for_cmd:
-        FOR IDENTIFIER IN list ':' NEWLINE suite
+        FOR IDENTIFIER IN list ':' NEWLINE { level++; } suite { level--; }
         ;
 
 
@@ -253,14 +254,14 @@ lambda:
 
 
 dictionary:
-        '{' { push_dictionary(); } dict '}' { $$ = pop_dictionary(); }
-        | '{' '}' { $$ = (Dictionary*)malloc(sizeof(Dictionary)); $$->keys = NULL; $$->values = NULL; }
+        '{' { if(level==0) {push_dictionary();} } dict '}' { if(level==0) {$$ = pop_dictionary();} }
+        | '{' '}' { if(level==0) {$$ = (Dictionary*)malloc(sizeof(Dictionary)); $$->keys = NULL; $$->values = NULL;} }
         ;
 
 
 dict:
-        dict_element ':' dict_element { store_element_element($<myStruct>1, $<myStruct>3); }
-        | dict_element ':' dictionary { store_element_dictionary($<myStruct>1, $3);/*$$ = $3;*/ }
+        dict_element ':' dict_element { if(level==0) { store_element_element($<myStruct>1, $<myStruct>3);} }
+        | dict_element ':' dictionary { if(level==0) { store_element_dictionary($<myStruct>1, $3);} }
         | dict ',' dict
         ;
 
@@ -272,7 +273,7 @@ dict_element:
 
 
 class_function_call:
-        IDENTIFIER '.' function_call {  char * function_name = function_stack->val.stringValue;/*
+        IDENTIFIER '.' function_call {  if(level==0) {char * function_name = function_stack->val.stringValue;/*
                                         function_stack = function_stack->next;
                                         char str[512]; sprintf(str, "%s.%s()", $1, function_name); $$ = str; printf("======>>> %s\n\n", str);*/
 
@@ -289,7 +290,7 @@ class_function_call:
                                             }
 
                                         }
-                                     }
+                                     } }
         ;
 
 %%
@@ -407,7 +408,9 @@ int dict_set_default(char * variable_name) {
 
 int dict_items(char * variable_name) {
 
-    if(function_stack != NULL){
+    node_t * temp_stack = function_stack->next; // 1st is the name
+
+    if(temp_stack != NULL){
         printf("items cannot have arguments\n");
         return -1;
     }

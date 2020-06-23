@@ -6,7 +6,9 @@
 #include "y.tab.h"
 
 char* remove_quotes(char*);
-%}.c linked_list
+int count_tabs(char*);
+
+%}
 
 %option noyywrap
 %option yylineno
@@ -26,7 +28,7 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 %%
 [\n]            { yylval.stringValue = "\n"; return NEWLINE; }
 
-[\t]            { yylval.stringValue = "\t"; return INDENT; }
+[\t]+            { yylval.intValue = count_tabs(strdup(yytext)); return INDENT; }
 
 [ ]             { /*printf("SPACE\n");*/ };
 
@@ -103,6 +105,16 @@ arithmetic_op <|>|==|>=|<=|<>|!=
 
 %%
 
+int count_tabs(char *tabs) {
+    int tabs_counter = 0;
+    
+    while(*tabs != '\0') {
+        tabs_counter++;
+        tabs++;
+    }
+
+    return tabs_counter;
+}
 
 char* remove_quotes(char* c){
     int i=0;

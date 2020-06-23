@@ -10,13 +10,25 @@
 
 '''
 
-import matplotlib.pyplot as plt
-import tensorflow as tf
 
+p = -+++++---++--++--++++++--++--++---++++---++--++--------------++-----------++++--3
+y = -++--++---++++-----++----++--++--++--++--+++-++----------++--++----------++--++-1
+t = -+++++-----++------++----++++++--++--++--++-+++----------++++++----------++++++-5
+h = -++--------++------++----++--++--++--++--++--++--------------++----++----++--++-7
+o = -++--------++------++----++--++---++++---++--++--------------++----++-----++++--6
+n = --------------------------------------------------------------------------------8
+
+
+
+# Imports
+
+import matplotlib.pyplot as plt
+
+
+# Operations
 
 x = 3
 y = -4.0
-
 res = x + y
 
 print(res)
@@ -26,26 +38,37 @@ b = y - 1
 
 print(a/b)
 
+
+this_is_a_string = "OH NO"
+print(this_is_a_string)
+
+
+
+# Class Definition
+
 class Point:
 	def __init__(self, x_value, y_value):
 		x = x_value
 		y = y_value
 
+
 p = Point(3, 5)
+
+
+# Function Definition
 
 def sum3():
 	print(a + b + res)
 
+
+# Function Call 
+
 sum3()
 
-# this is supposed to be a comment
+# if statement
 
-if(x>43):
+if x>43:
 	x = x + 1
-
-
-for i in [3, 1, 7, 65]:
-	print(i)
 
 
 if 5<3:
@@ -56,34 +79,37 @@ else:
 	x = 3
 
 
+for i in [3, 1, 7, 65]:
+	print(i)
+
+
+# Lambda Calculus
+
 lambda : 2
 
-power = lambda arg1: arg1**2
+double_number = lambda arg1: arg1*2
 
+
+
+# Dictionaries
 
 example = {"23":2, "44":{ 2.0 : a, 5:{3:5} }, 6.6:2, "2": 3, "what": {}, 2: "test"}
 
+# items()
+
 example.items()
 
+# setdefault()
 
-x = {3: 6, "a": 7}
+example.setdefault("2")
+print(example)
 
-x.setdefault(15)
+example.setdefault(666, "UPatras")
+print(example)
 
-print(x)
+example.setdefault("CEID")
+print(example)
 
-john = "OH NO"
-print(john)
-
-
-
-
-p = -+++++---++--++--++++++--++--++---++++---++--++--------------++-----------++++--3
-y = -++--++---++++-----++----++--++--++--++--+++-++----------++--++----------++--++-1
-t = -+++++-----++------++----++++++--++--++--++-+++----------++++++----------++++++-5
-h = -++--------++------++----++--++--++--++--++--++--------------++----++----++--++-7
-o = -++--------++------++----++--++---++++---++--++--------------++----++-----++++--6
-n = --------------------------------------------------------------------------------8
-
-
+example.setdefault("44", 9)
+print(example)
 
