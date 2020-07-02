@@ -326,7 +326,6 @@ int dict_set_default(char * variable_name) {
 
 
     Variable * key = &temp_stack->val;
-    // print_variable(key);
 
     temp_stack = temp_stack->next;
 
@@ -340,7 +339,7 @@ int dict_set_default(char * variable_name) {
         }
     }
 
-        // has 1 or 2 arguments
+    // has 1 or 2 arguments
 
     Variable* found_variable = find_variable(variables, variable_name);
     if(!found_variable) {
@@ -359,7 +358,7 @@ int dict_set_default(char * variable_name) {
     }
 
     Dictionary * dictionary = found_variable->dictionary;
-    
+
     node_t * key_list = dictionary->keys;
     node_t * value_list = dictionary->values;
     
@@ -370,31 +369,28 @@ int dict_set_default(char * variable_name) {
         current_key = &key_list->val;
         current_value = &value_list->val;
 
-        if(current_key->type == INTEGER_VALUE && current_key->type == key->type)
+        if(current_key->type == INTEGER_VALUE && key->type == INTEGER_VALUE) {
             if(current_key->intValue == key->intValue) {
-                //printf("->> %d\n", current_value->intValue);
                 break;
             }
-        else if(current_key->type == FLOAT_VALUE && current_key->type == key->type)
+        }
+        else if(current_key->type == FLOAT_VALUE && key->type == FLOAT_VALUE) {
             if(current_key->floatValue == key->floatValue) {
-                //printf("%lf", current_value->floatValue);
                 break;
             }
-        else if(current_key->type == STRING_VALUE && current_key->type == key->type)
+        }
+        else if(current_key->type == STRING_VALUE && key->type == STRING_VALUE) {
             if(strcmp(current_key->stringValue, key->stringValue) == 0) {
-                //printf("\"%s\"", current_key->stringValue);
                 break;
             }
+        }
 
         key_list = key_list->next;
         value_list = value_list->next;
     }
 
 
-    if(key_list) { // key found
-        print_variable(current_value);
-        printf("\n");
-    } else { // key not found
+    if(!key_list) { // key not found
         dictionary->keys = push_front(dictionary->keys, key->name, key->type, key->intValue, key->floatValue, key->stringValue, NULL);
         if(value) { // 2 arguments
             dictionary->values = push_front(dictionary->values, value->name, value->type, value->intValue, value->floatValue, value->stringValue, value->dictionary);
