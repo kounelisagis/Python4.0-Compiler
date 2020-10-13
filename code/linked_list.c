@@ -12,25 +12,6 @@ void print_inner_dictionary(node_t * keys, node_t * values, node_t * start_point
     
     print_inner_dictionary(keys->next, values->next, start_pointer);
 
-    // print
-    
-    // if(keys->val.type == INTEGER_VALUE)
-    //     printf("%d: ", keys->val.intValue);
-    // else if(keys->val.type == FLOAT_VALUE)
-    //     printf("%lf: ", keys->val.floatValue);
-    // else if(keys->val.type == STRING_VALUE)
-    //     printf("\"%s\": ", keys->val.stringValue);
-
-
-    // if(values->val.type == INTEGER_VALUE)
-    //     printf("%d", values->val.intValue);
-    // else if(values->val.type == FLOAT_VALUE)
-    //     printf("%lf", values->val.floatValue);
-    // else if(values->val.type == STRING_VALUE)
-    //     printf("\"%s\"", values->val.stringValue);
-    // else
-    //     print_dictionary(values->val.dictionary);
-
     print_variable(&keys->val);
     printf(": ");
     print_variable(&values->val);
