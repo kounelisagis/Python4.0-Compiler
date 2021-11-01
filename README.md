@@ -1,13 +1,13 @@
 # Python4.0 Compiler
 This is an attempt to implement a truncated version of a Python3 Compiler. It's a Lexical, Syntax and Sematic Analyzer mix.
 
-### Team
-Apostolos Kontarinis<br>
-Agisilaos Kounelis<br>
-John Prokopiou<br>
-John Sina
+## Team 👪
+[Apostolos Kontarinis](https://github.com/AposKonti)<br>
+[Agisilaos Kounelis](https://github.com/kounelisagis)<br>
+[Ioannis Prokopiou](https://github.com/GiannisProkopiou)<br>
+[Ioannis Sina](https://github.com/IoannisSina)
 
-### Supported Features
+## Supported Features ✊
 #### Semantic analysis:
 - **Variables**: initialization (int, float, string), overriding variables with the same name, execution of arithmetic operations (* / - +), support order of operations.
 - **Dictionaries**: initialization(keys: primitive types, values: everything), implementation of items() and setdefault(keyname, value=None) functions.
@@ -23,7 +23,7 @@ John Sina
 - **Lambda Functions**
 
 
-### Compile & Run - Classic Way :neutral_face:
+## Compile & Run - Classic Way :neutral_face:
 ```sh
 $ flex calc.l
 $ bison -y -d calc.y
